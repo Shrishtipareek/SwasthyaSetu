@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Grid,
@@ -11,10 +11,9 @@ import {
   Box,
   Divider,
   Paper,
-  Chip,
-  Alert
+  Chip
 } from '@mui/material';
-import { Bloodtype, Search, Phone } from '@mui/icons-material';
+import { Bloodtype, Phone } from '@mui/icons-material';
 
 const BloodDirectory = () => {
   const [donors, setDonors] = useState([]);
@@ -22,7 +21,7 @@ const BloodDirectory = () => {
   const [bloodGroup, setBloodGroup] = useState('O+');
   const [cityArea, setCityArea] = useState('');
 
-  const loadDonors = async () => {
+  const loadDonors = useCallback(async () => {
     setLoading(true);
     try {
       let url = `http://localhost:5000/api/blood-donors?bloodGroup=${encodeURIComponent(bloodGroup)}`;
@@ -39,11 +38,11 @@ const BloodDirectory = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [bloodGroup, cityArea]);
 
   useEffect(() => {
     loadDonors();
-  }, [bloodGroup, cityArea]);
+  }, [loadDonors]);
 
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
@@ -59,8 +58,8 @@ const BloodDirectory = () => {
       <Grid container spacing={3}>
         {/* Filters */}
         <Grid item xs={12} md={3}>
-          <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '16px' }}>
-            <Typography variant="subtitle1" fontWeight="bold" mb={2}>Filter Donors</Typography>
+          <Paper elevation={0} sx={{ p: 3, border: '1px solid #E2E8F0', borderRadius: '14px', bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+            <Typography variant="subtitle1" fontWeight="bold" mb={2} color="#0F172A">Filter Donors</Typography>
             <TextField
               select
               label="Blood Group"
@@ -97,34 +96,33 @@ const BloodDirectory = () => {
             <Grid container spacing={2}>
               {donors.map(donor => (
                 <Grid item xs={12} sm={6} key={donor._id}>
-                  <Card sx={{ border: '1px solid #e2e8f0', borderRadius: '12px', boxShadow: 'none' }}>
+                  <Card sx={{ border: '1px solid #E2E8F0', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', transition: 'all 0.2s ease', '&:hover': { borderColor: '#0F766E', boxShadow: '0 6px 20px rgba(15, 118, 110, 0.08)' } }}>
                     <CardContent sx={{ p: 2.5 }}>
                       <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
-                        <Typography variant="subtitle1" fontWeight="bold" color="#1e293b">
+                        <Typography variant="subtitle1" fontWeight="bold" color="#0F172A">
                           {donor.user?.name || 'Voluntary Donor'}
                         </Typography>
                         <Chip
-                          icon={<Bloodtype />}
+                          icon={<Bloodtype sx={{ color: '#0F766E !important' }} />}
                           label={donor.bloodGroup}
-                          color="error"
                           size="small"
-                          sx={{ fontWeight: 'bold' }}
+                          sx={{ fontWeight: 'bold', bgcolor: '#E6F6F3', color: '#0F766E' }}
                         />
                       </Box>
-                      <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
+                      <Typography variant="body2" color="#64748B" sx={{ mb: 1 }}>
                         Area: <strong>{donor.cityArea}</strong>
                       </Typography>
-                      <Typography variant="caption" display="block" sx={{ color: '#64748b', mb: 2 }}>
+                      <Typography variant="caption" display="block" sx={{ color: '#64748B', mb: 2 }}>
                         Contact Pref: {donor.contactPreference}
                       </Typography>
                       <Divider sx={{ mb: 2 }} />
                       <Button
                         variant="outlined"
-                        color="error"
                         size="small"
                         fullWidth
                         startIcon={<Phone />}
                         href={`tel:${donor.user?.phone}`}
+                        sx={{ borderColor: '#0F766E', color: '#0F766E', fontWeight: 'bold', '&:hover': { bgcolor: '#E6F6F3' } }}
                       >
                         Contact Donor
                       </Button>

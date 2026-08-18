@@ -1,47 +1,46 @@
 import React from 'react';
-import { Box, Typography, Container, Grid, Link, useTheme } from '@mui/material';
+import { Box, Typography, Container, Grid, Link } from '@mui/material';
 import { LocalHospital } from '@mui/icons-material';
 
 const Footer = () => {
-  const theme = useTheme();
 
   return (
-    <Box sx={{ bgcolor: '#0f172a', color: '#94a3b8', py: 6, mt: 'auto', borderTop: '1px solid #1e293b' }}>
+    <Box sx={{ bgcolor: '#ffffff', color: '#64748B', py: 6, mt: 'auto', borderTop: '1px solid #E2E8F0', boxShadow: '0 -4px 20px rgba(15, 118, 110, 0.02)' }}>
       <Container maxWidth="lg">
         <Grid container spacing={4}>
-          <Grid item xs={12} md={4}>
-            <Box display="flex" alignItems="center" mb={2}>
-              <LocalHospital sx={{ color: theme.palette.primary.main, mr: 1 }} />
-              <Typography variant="h6" color="#f8fafc" fontWeight="bold">
-                SwasthyaSetu
+          <Grid xs={12} md={4}>
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+              <LocalHospital sx={{ color: '#DC2626', mr: 1, fontSize: 26 }} />
+              <Typography variant="h6" color="#0F172A" fontWeight="bold">
+                Swasthya<span style={{ color: '#0F766E' }}>Setu</span>
               </Typography>
             </Box>
-            <Typography variant="body2" sx={{ lineHeight: 1.6 }}>
+            <Typography variant="body2" sx={{ lineHeight: 1.6, color: '#64748B' }}>
               Centralized emergency coordination network connecting hospitals, voluntary donors, and patients. Delivering real-time resource availability when it matters most.
             </Typography>
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="subtitle1" color="#f8fafc" fontWeight="bold" mb={2}>
+          <Grid xs={12} sm={6} md={4}>
+            <Typography variant="subtitle1" color="#0F172A" fontWeight="bold" mb={2}>
               Resources
             </Typography>
-            <Box display="flex" flexDirection="column" gap={1}>
-              <Link href="/public-dashboard" color="inherit" underline="hover">Aggregate Metrics</Link>
-              <Link href="/search-hospitals" color="inherit" underline="hover">Nearby Hospital Finder</Link>
-              <Link href="/blood-donors" color="inherit" underline="hover">Voluntary Blood Registry</Link>
-              <Link href="/campaigns" color="inherit" underline="hover">Awareness Campaigns</Link>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+              <Link href="/public-dashboard" color="inherit" underline="hover" sx={{ '&:hover': { color: '#0F766E' } }}>Aggregate Metrics</Link>
+              <Link href="/search-hospitals" color="inherit" underline="hover" sx={{ '&:hover': { color: '#0F766E' } }}>Nearby Hospital Finder</Link>
+              <Link href="/blood-donors" color="inherit" underline="hover" sx={{ '&:hover': { color: '#0F766E' } }}>Voluntary Blood Registry</Link>
+              <Link href="/campaigns" color="inherit" underline="hover" sx={{ '&:hover': { color: '#0F766E' } }}>Awareness Campaigns</Link>
             </Box>
           </Grid>
-          <Grid item xs={12} sm={6} md={4}>
-            <Typography variant="subtitle1" color="#f8fafc" fontWeight="bold" mb={2}>
+          <Grid xs={12} sm={6} md={4}>
+            <Typography variant="subtitle1" color="#0F172A" fontWeight="bold" mb={2}>
               Disclaimer
             </Typography>
-            <Typography variant="caption" display="block" sx={{ lineHeight: 1.5, color: '#64748b' }}>
+            <Typography variant="caption" display="block" sx={{ lineHeight: 1.5, color: '#94A3B8' }}>
               SwasthyaSetu is a technology platform connecting users with hospitals and providing general health information via CareAI. We do NOT provide diagnostic services or write medical prescriptions. In a severe medical emergency, please dial local helpline numbers (like 102/108) or visit the nearest ER immediately.
             </Typography>
           </Grid>
         </Grid>
-        <Box borderTop="1px solid #1e293b" mt={4} pt={3} textAlign="center">
-          <Typography variant="body2" sx={{ color: '#475569' }}>
+        <Box sx={{ borderTop: '1px solid #E2E8F0', mt: 4, pt: 3, textAlign: 'center' }}>
+          <Typography variant="body2" sx={{ color: '#64748B' }}>
             &copy; {new Date().getFullYear()} SwasthyaSetu. Dedicated to saving lives. All rights reserved.
           </Typography>
         </Box>

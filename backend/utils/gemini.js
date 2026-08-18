@@ -1,4 +1,4 @@
-const { GoogleGenAI } = require('@google/generative-ai');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Hospital = require('../models/Hospital');
 const Doctor = require('../models/Doctor');
 
@@ -82,9 +82,9 @@ const getAIResponse = async (prompt, chatHistory = []) => {
   }
 
   try {
-    // If Gemini key is set, configure GoogleGenAI
-    const ai = new GoogleGenAI({ apiKey });
-    const model = ai.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    // If Gemini key is set, configure GoogleGenerativeAI
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     // Build medical instruction wrapper
     const systemInstruction = `You are CareAI, a professional and helpful healthcare coordination assistant for the SwasthyaSetu app.

@@ -15,7 +15,9 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Alert
+  Alert,
+  Chip,
+  Avatar
 } from '@mui/material';
 import { VerifiedUser, LocalHospital, People, CalendarMonth } from '@mui/icons-material';
 import { adminAPI } from '../services/api';
@@ -71,19 +73,19 @@ const AdminDashboard = () => {
       {/* Stats row */}
       <Grid container spacing={3} sx={{ mb: 6 }}>
         {[
-          { label: 'Total Patients', value: stats?.patientsCount, icon: <People />, color: '#0ea5e9' },
-          { label: 'Total Hospitals', value: stats?.hospitalsCount, icon: <LocalHospital />, color: '#22c55e' },
-          { label: 'Pending Approvals', value: stats?.pendingHospitalsCount, icon: <VerifiedUser />, color: '#ea580c' },
-          { label: 'Scheduled Appointments', value: stats?.appointmentsCount, icon: <CalendarMonth />, color: '#6366f1' }
+          { label: 'Total Patients', value: stats?.patientsCount, icon: <People />, color: '#0F766E' },
+          { label: 'Total Hospitals', value: stats?.hospitalsCount, icon: <LocalHospital />, color: '#0D9488' },
+          { label: 'Pending Approvals', value: stats?.pendingHospitalsCount, icon: <VerifiedUser />, color: '#0F766E' },
+          { label: 'Scheduled Appointments', value: stats?.appointmentsCount, icon: <CalendarMonth />, color: '#0D9488' }
         ].map((card, idx) => (
           <Grid item xs={12} sm={6} md={3} key={idx}>
-            <Card sx={{ borderLeft: `5px solid ${card.color}` }}>
+            <Card sx={{ borderLeft: `5px solid ${card.color}`, borderRadius: '12px', borderTop: '1px solid #E2E8F0', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
               <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
-                  <Typography variant="h4" fontWeight="bold" color="#0f172a">{card.value}</Typography>
-                  <Typography variant="body2" color="textSecondary">{card.label}</Typography>
+                  <Typography variant="h4" fontWeight="800" color="#0F172A">{card.value}</Typography>
+                  <Typography variant="body2" color="#64748B">{card.label}</Typography>
                 </Box>
-                <Avatar sx={{ bgcolor: `${card.color}15`, color: card.color }}>{card.icon}</Avatar>
+                <Avatar sx={{ bgcolor: '#E6F6F3', color: card.color }}>{card.icon}</Avatar>
               </CardContent>
             </Card>
           </Grid>
@@ -93,7 +95,7 @@ const AdminDashboard = () => {
       {successMsg && <Alert severity="success" sx={{ mb: 3 }}>{successMsg}</Alert>}
 
       {/* Hospital verification list */}
-      <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+      <Paper elevation={0} sx={{ p: 3, border: '1px solid #E2E8F0', borderRadius: '14px', bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
         <Typography variant="h6" fontWeight="bold" mb={2}>
           Hospital License Registrations
         </Typography>

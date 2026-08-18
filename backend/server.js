@@ -18,6 +18,8 @@ const aiRoutes = require('./routes/aiRoutes');
 const campaignRoutes = require('./routes/campaignRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const bloodDonorRoutes = require('./routes/bloodDonorRoutes');
+const medicalDocumentRoutes = require('./routes/medicalDocumentRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -48,6 +50,8 @@ app.use('/api/ai', aiRoutes);
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/blood-donors', bloodDonorRoutes);
+app.use('/api/documents', medicalDocumentRoutes);
 
 // Root route
 app.get('/', (req, res) => {

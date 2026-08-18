@@ -8,7 +8,6 @@ import {
   Button,
   Box,
   Divider,
-  Paper,
   Chip,
   Alert
 } from '@mui/material';
@@ -53,12 +52,6 @@ const Campaigns = () => {
     }
   };
 
-  const getCampaignIconColor = (type) => {
-    if (type === 'blood_camp') return '#dc2626';
-    if (type === 'vaccination') return '#06b6d4';
-    return '#f59e0b';
-  };
-
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
       <Box mb={4}>
@@ -82,44 +75,44 @@ const Campaigns = () => {
             const registered = camp.registeredUsers?.includes(user?._id);
             return (
               <Grid item xs={12} md={6} key={camp._id}>
-                <Card sx={{ border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: 'none' }}>
+                <Card sx={{ border: '1px solid #E2E8F0', borderRadius: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', transition: 'all 0.2s ease', '&:hover': { borderColor: '#0F766E', boxShadow: '0 6px 20px rgba(15, 118, 110, 0.08)' } }}>
                   <CardContent sx={{ p: 3 }}>
                     <Box display="flex" justifyContent="space-between" alignItems="start" mb={2}>
-                      <Typography variant="h6" fontWeight="bold" color="#0f172a">
+                      <Typography variant="h6" fontWeight="bold" color="#0F172A">
                         {camp.title}
                       </Typography>
                       <Chip
                         label={camp.type.toUpperCase().replace('_', ' ')}
                         size="small"
                         sx={{
-                          bgcolor: `${getCampaignIconColor(camp.type)}15`,
-                          color: getCampaignIconColor(camp.type),
+                          bgcolor: '#E6F6F3',
+                          color: '#0F766E',
                           fontWeight: 'bold',
                           fontSize: '0.65rem'
                         }}
                       />
                     </Box>
-                    <Typography variant="body2" color="textSecondary" sx={{ mb: 2, lineHeight: 1.6 }}>
+                    <Typography variant="body2" color="#64748B" sx={{ mb: 2, lineHeight: 1.6 }}>
                       {camp.description}
                     </Typography>
                     <Divider sx={{ mb: 2 }} />
 
                     <Box display="flex" flexDirection="column" gap={1.5} sx={{ mb: 3 }}>
                       <Box display="flex" alignItems="center" gap={1}>
-                        <CalendarMonth sx={{ color: '#64748b', fontSize: 20 }} />
-                        <Typography variant="body2" color="#475569">
+                        <CalendarMonth sx={{ color: '#0F766E', fontSize: 20 }} />
+                        <Typography variant="body2" color="#0F172A">
                           Schedule: <strong>{camp.date}</strong> | {camp.time}
                         </Typography>
                       </Box>
                       <Box display="flex" alignItems="center" gap={1}>
-                        <LocationOn sx={{ color: '#64748b', fontSize: 20 }} />
-                        <Typography variant="body2" color="#475569">
+                        <LocationOn sx={{ color: '#0F766E', fontSize: 20 }} />
+                        <Typography variant="body2" color="#0F172A">
                           Venue: <strong>{camp.venue}</strong>
                         </Typography>
                       </Box>
                       <Box display="flex" alignItems="center" gap={1}>
-                        <LocalActivity sx={{ color: '#64748b', fontSize: 20 }} />
-                        <Typography variant="body2" color="#475569">
+                        <LocalActivity sx={{ color: '#0F766E', fontSize: 20 }} />
+                        <Typography variant="body2" color="#0F172A">
                           Host Hospital: <strong>{camp.hospital?.name}</strong>
                         </Typography>
                       </Box>
@@ -130,17 +123,17 @@ const Campaigns = () => {
                     )}
 
                     {registered ? (
-                      <Button variant="contained" color="success" disabled fullWidth>
+                      <Button variant="contained" color="success" disabled fullWidth sx={{ borderRadius: '10px' }}>
                         Slot Reserved
                       </Button>
                     ) : (
                       <Button
                         variant="contained"
-                        color="primary"
                         fullWidth
                         onClick={() => handleRegister(camp._id)}
+                        sx={{ fontWeight: 'bold', bgcolor: '#0F766E', '&:hover': { bgcolor: '#0D9488' }, borderRadius: '10px' }}
                       >
-                        Register for Camp Drive
+                        Register for Campaign
                       </Button>
                     )}
                   </CardContent>

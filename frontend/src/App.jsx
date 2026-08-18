@@ -25,34 +25,121 @@ import PublicDashboard from './pages/PublicDashboard';
 import BloodDirectory from './pages/BloodDirectory';
 import Campaigns from './pages/Campaigns';
 import AdminDashboard from './pages/AdminDashboard';
+import SymptomChecker from './pages/SymptomChecker';
 
-// Custom MUI trustworthy theme
+// Custom MUI medical teal theme (Image 1 reference style)
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#0ea5e9', // Blue/Teal healthcare primary
+      main: '#0F766E', // Primary teal
+      light: '#14B8A6',
+      dark: '#115E59',
       contrastText: '#ffffff',
     },
     secondary: {
-      main: '#0d9488', // Green teal secondary
+      main: '#0D9488', // Green teal secondary
+      light: '#E6F6F3',
     },
     error: {
       main: '#ef4444', // Red emergency
     },
     background: {
-      default: '#f8fafc',
+      default: '#F7FAFA',
       paper: '#ffffff',
+    },
+    text: {
+      primary: '#0F172A',
+      secondary: '#64748B',
     },
   },
   typography: {
     fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    h4: { fontWeight: 700, letterSpacing: '-0.02em', color: '#0F172A' },
+    h5: { fontWeight: 700, color: '#0F172A' },
+    h6: { fontWeight: 600, color: '#0F172A' },
     button: {
       textTransform: 'none',
       fontWeight: 600,
     },
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: 10,
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 10,
+          boxShadow: 'none',
+          padding: '8px 20px',
+          fontWeight: 600,
+          transition: 'all 0.2s ease-in-out',
+          '&:hover': {
+            boxShadow: '0 4px 14px rgba(15, 118, 110, 0.2)',
+          },
+        },
+        containedPrimary: {
+          backgroundColor: '#0F766E',
+          '&:hover': {
+            backgroundColor: '#0D9488',
+          },
+        },
+        outlinedPrimary: {
+          borderColor: '#0F766E',
+          color: '#0F766E',
+          '&:hover': {
+            backgroundColor: '#E6F6F3',
+            borderColor: '#0F766E',
+          },
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+          boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+          border: '1px solid #E2E8F0',
+          transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+          '&:hover': {
+            boxShadow: '0 4px 20px 0 rgba(15, 118, 110, 0.08)',
+          },
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          borderRadius: 10,
+          backgroundColor: '#ffffff',
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#E2E8F0',
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#0F766E',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#0F766E',
+            borderWidth: 2,
+          },
+        },
+      },
+    },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          fontWeight: 600,
+        },
+      },
+    },
   },
 });
 
@@ -65,10 +152,10 @@ function App() {
       <AuthProvider>
         <SocketProvider>
           <Router>
-            <Box display="flex" flexDirection="column" minHeight="100vh">
+            <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
               <Navbar onEmergencyClick={() => setEmergencyOpen(true)} />
               
-              <Box component="main" flexGrow={1}>
+              <Box component="main" sx={{ flexGrow: 1 }}>
                 <Routes>
                   {/* Public routes */}
                   <Route path="/" element={<LandingPage onEmergencyClick={() => setEmergencyOpen(true)} />} />
@@ -78,6 +165,7 @@ function App() {
                   <Route path="/search-hospitals" element={<HospitalSearch />} />
                   <Route path="/blood-donors" element={<BloodDirectory />} />
                   <Route path="/campaigns" element={<Campaigns />} />
+                  <Route path="/symptom-checker" element={<SymptomChecker onEmergencyClick={() => setEmergencyOpen(true)} />} />
 
                   {/* Patient Routes */}
                   <Route

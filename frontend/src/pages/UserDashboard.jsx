@@ -1,10 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Grid,
   Typography,
-  Card,
-  CardContent,
   Button,
   Box,
   Divider,
@@ -19,20 +17,21 @@ import {
   TextField,
   MenuItem,
   Alert,
-  IconButton
+  IconButton,
+  List,
+  ListItem,
+  ListItemText
 } from '@mui/material';
 import {
   CalendarMonth,
   UploadFile,
   Delete,
-  LocalHospital,
   Person,
-  ContactPhone,
   Bloodtype,
-  Launch
+  Warning as WarningIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
-import { appointmentAPI, authAPI, medicalDocumentAPI, doctorAPI, ambulanceAPI, bloodDonorAPI } from '../services/api';
+import { appointmentAPI } from '../services/api';
 
 const UserDashboard = ({ onEmergencyClick }) => {
   const { user, updateProfile } = useAuth();
@@ -54,7 +53,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
   const [docTitle, setDocTitle] = useState('');
   const [docType, setDocType] = useState('prescription');
   const [docNotes, setDocNotes] = useState('');
-  const [docFileUrl, setDocFileUrl] = useState('https://example.com/simulated-report.pdf');
+  const [docFileUrl] = useState('https://example.com/simulated-report.pdf');
   const [docSuccess, setDocSuccess] = useState('');
 
   // Blood donor form
@@ -62,45 +61,16 @@ const UserDashboard = ({ onEmergencyClick }) => {
   const [donorPref, setDonorPref] = useState('Phone');
   const [donorSuccess, setDonorSuccess] = useState('');
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = useCallback(async () => {
     try {
       const apptRes = await appointmentAPI.getAppointments();
       setAppointments(apptRes.data);
     } catch (err) {
       console.error(err.message);
     }
+  }, []);
 
-    try {
-      // Stub loader for documents using Axios base config
-      const docRes = await appointmentAPI.getAppointments(); // fallback/safe check
-      // For real documents, let's load them via their actual API. Let's see if we added /api/documents. Yes, medicalDocumentRoutes is mapped as app.use('/api/documents', ...) wait, let's look at server.js:
-      // Ah! In server.js we used: `app.use('/api/appointments', appointmentRoutes);`
-      // Wait, let's check what routes we registered in server.js:
-      // app.use('/api/auth', authRoutes);
-      // app.use('/api/hospitals', hospitalRoutes);
-      // app.use('/api/doctors', doctorRoutes);
-      // app.use('/api/appointments', appointmentRoutes);
-      // app.use('/api/resource-requests', resourceRequestRoutes);
-      // app.use('/api/ambulances', ambulanceRoutes);
-      // app.use('/api/emergency', emergencyRoutes);
-      // app.use('/api/ai', aiRoutes);
-      // app.use('/api/campaigns', campaignRoutes);
-      // app.use('/api/notifications', notificationRoutes);
-      // app.use('/api/admin', adminRoutes);
-      // Wait! We didn't register medicalDocumentRoutes in server.js! Let's check server.js line-by-line in our mind.
-      // Yes, `app.use('/api/notifications', notificationRoutes);` but not documents!
-      // Let's modify server.js to support medicalDocumentRoutes. We can fix that with a replacement later, but let's make sure the client calls `/api/appointments` or custom endpoints safely.
-      // Wait, we did write `medicalDocumentRoutes` and `medicalDocumentController`!
-      // Let's check `backend/server.js`.
-      // Let's read `backend/server.js` using `view_file` to verify. No need, we can replace file content of `backend/server.js` to add `app.use('/api/documents', documentRoutes)`.
-      // Let's first make sure we write this dashboard.
-    } catch (err) {
-      console.error(err.message);
-    }
-  };
-
-  // For simplicity, let's load documents from a dedicated fetch
-  const fetchDocs = async () => {
+  const fetchDocs = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       if (token) {
@@ -115,9 +85,9 @@ const UserDashboard = ({ onEmergencyClick }) => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
 
-  const fetchDonorStatus = async () => {
+  const fetchDonorStatus = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       if (token) {
@@ -133,13 +103,13 @@ const UserDashboard = ({ onEmergencyClick }) => {
     } catch (err) {
       console.error(err);
     }
-  };
+  }, [user?._id]);
 
   useEffect(() => {
     fetchDashboardData();
     fetchDocs();
     fetchDonorStatus();
-  }, [user]);
+  }, [user, fetchDashboardData, fetchDocs, fetchDonorStatus]);
 
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
@@ -257,10 +227,10 @@ const UserDashboard = ({ onEmergencyClick }) => {
       <Grid container spacing={4}>
         {/* Appointments List */}
         <Grid item xs={12} md={7}>
-          <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '16px', mb: 4 }}>
+          <Paper elevation={0} sx={{ p: 3, border: '1px solid #E2E8F0', borderRadius: '14px', mb: 4, bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <Box display="flex" alignItems="center" gap={1} mb={2}>
-              <CalendarMonth color="primary" />
-              <Typography variant="h6" fontWeight="bold" color="#0f172a">
+              <CalendarMonth sx={{ color: '#0F766E' }} />
+              <Typography variant="h6" fontWeight="bold" color="#0F172A">
                 Upcoming Doctor Appointments
               </Typography>
             </Box>
@@ -304,10 +274,10 @@ const UserDashboard = ({ onEmergencyClick }) => {
           </Paper>
 
           {/* Medical Document Locker */}
-          <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '16px' }}>
+          <Paper elevation={0} sx={{ p: 3, border: '1px solid #E2E8F0', borderRadius: '14px', bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <Box display="flex" alignItems="center" gap={1} mb={2}>
-              <UploadFile color="primary" />
-              <Typography variant="h6" fontWeight="bold" color="#0f172a">
+              <UploadFile sx={{ color: '#0F766E' }} />
+              <Typography variant="h6" fontWeight="bold" color="#0F172A">
                 Medical Records Locker
               </Typography>
             </Box>
@@ -343,7 +313,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
                   </TextField>
                 </Grid>
                 <Grid item xs={12} sm={4}>
-                  <Button type="submit" variant="outlined" fullWidth sx={{ height: '40px', fontWeight: 'bold' }}>
+                  <Button type="submit" variant="outlined" fullWidth sx={{ height: '40px', fontWeight: 'bold', borderColor: '#0F766E', color: '#0F766E', '&:hover': { bgcolor: '#E6F6F3' } }}>
                     Upload File Record
                   </Button>
                 </Grid>
@@ -369,7 +339,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
                       primary={doc.title}
                       secondary={
                         <>
-                          <Chip label={doc.type.replace('_', ' ').toUpperCase()} size="small" sx={{ mr: 1, height: 18, fontSize: '0.65rem' }} />
+                          <Chip label={doc.type.replace('_', ' ').toUpperCase()} size="small" sx={{ mr: 1, height: 20, fontSize: '0.65rem', bgcolor: '#E6F6F3', color: '#0F766E', fontWeight: 'bold' }} />
                           Uploaded on: {new Date(doc.createdAt).toLocaleDateString()}
                         </>
                       }
@@ -384,10 +354,10 @@ const UserDashboard = ({ onEmergencyClick }) => {
         {/* Profile and Emergency info panels */}
         <Grid item xs={12} md={5}>
           {/* Medical Profile */}
-          <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '16px', mb: 4 }}>
+          <Paper elevation={0} sx={{ p: 3, border: '1px solid #E2E8F0', borderRadius: '14px', mb: 4, bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
             <Box display="flex" alignItems="center" gap={1} mb={2}>
-              <Person color="primary" />
-              <Typography variant="h6" fontWeight="bold" color="#0f172a">
+              <Person sx={{ color: '#0F766E' }} />
+              <Typography variant="h6" fontWeight="bold" color="#0F172A">
                 Personal Medical Profile
               </Typography>
             </Box>

@@ -13,7 +13,7 @@ const generateToken = (id) => {
 // @access  Public
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role, phone, location } = req.body;
+    const { name, email, password, role, phone, location, medicalInfo } = req.body;
 
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -26,7 +26,8 @@ const registerUser = async (req, res) => {
       password,
       role: role || 'patient',
       phone,
-      location: location || { lat: 28.6139, lng: 77.2090 }
+      location: location || { lat: 28.6139, lng: 77.2090 },
+      medicalInfo
     });
 
     if (user) {

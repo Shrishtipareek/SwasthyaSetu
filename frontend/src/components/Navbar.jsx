@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -43,7 +43,7 @@ const Navbar = ({ onEmergencyClick }) => {
   const [anchorElUser, setAnchorElUser] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (user) {
       try {
         const { data } = await notificationAPI.getNotifications();
@@ -53,11 +53,11 @@ const Navbar = ({ onEmergencyClick }) => {
         console.error('Error fetching notifications:', err.message);
       }
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchNotifications();
-  }, [user]);
+  }, [fetchNotifications]);
 
   useEffect(() => {
     if (socket && user) {
@@ -67,7 +67,7 @@ const Navbar = ({ onEmergencyClick }) => {
       };
 
       socket.on('notification_received', handleNewNotification);
-      socket.on('emergency_alert_received', (req) => {
+      socket.on('emergency_alert_received', () => {
         fetchNotifications();
       });
 
@@ -76,7 +76,7 @@ const Navbar = ({ onEmergencyClick }) => {
         socket.off('emergency_alert_received');
       };
     }
-  }, [socket, user]);
+  }, [socket, user, fetchNotifications]);
 
   const handleMarkRead = async (id) => {
     try {
@@ -112,19 +112,19 @@ const Navbar = ({ onEmergencyClick }) => {
 
   return (
     <>
-      <AppBar position="sticky" sx={{ background: '#ffffff', color: '#1e293b', boxShadow: '0 2px 10px rgba(0,0,0,0.05)' }}>
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
-          <Box display="flex" alignItems="center" component={RouterLink} to="/" sx={{ textDecoration: 'none', color: 'inherit' }}>
-            <LocalHospital sx={{ color: theme.palette.primary.main, mr: 1, fontSize: 28 }} />
-            <Typography variant="h6" fontWeight="bold" sx={{ letterSpacing: '0.5px' }}>
-              SwasthyaSetu
+      <AppBar position="sticky" sx={{ background: '#ffffff', color: '#0F172A', borderBottom: '1px solid #E2E8F0', boxShadow: '0 2px 12px rgba(15, 118, 110, 0.04)' }}>
+        <Toolbar sx={{ justifyContent: 'space-between', py: 0.5 }}>
+          <Box component={RouterLink} to="/" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
+            <LocalHospital sx={{ color: '#DC2626', mr: 1, fontSize: { xs: 28, sm: 34 } }} />
+            <Typography variant="h5" fontWeight="900" sx={{ fontSize: { xs: '1.4rem', sm: '1.75rem' }, letterSpacing: '-0.03em', color: '#0F172A' }}>
+              Swasthya<span style={{ color: '#0F766E' }}>Setu</span>
             </Typography>
           </Box>
 
           {!isMobile ? (
-            <Box display="flex" alignItems="center" gap={1}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               {filteredMenuItems.map(item => (
-                <Button key={item.label} component={RouterLink} to={item.path} sx={{ color: '#475569', textTransform: 'capitalize', fontWeight: '500', '&:hover': { color: theme.palette.primary.main } }}>
+                <Button key={item.label} component={RouterLink} to={item.path} sx={{ color: '#475569', textTransform: 'none', fontWeight: '600', borderRadius: '8px', px: 1.8, py: 0.8, '&:hover': { color: '#0F766E', backgroundColor: '#E6F6F3' } }}>
                   {item.label}
                 </Button>
               ))}
@@ -135,14 +135,15 @@ const Navbar = ({ onEmergencyClick }) => {
                 startIcon={<WarningIcon />}
                 onClick={onEmergencyClick}
                 sx={{
-                  ml: 2,
-                  px: 3,
+                  ml: 1.5,
+                  px: 2.5,
+                  borderRadius: '10px',
                   fontWeight: 'bold',
-                  boxShadow: '0 4px 10px rgba(239, 68, 68, 0.3)',
+                  boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)',
                   animation: 'pulse 2s infinite',
                   '@keyframes pulse': {
                     '0%': { transform: 'scale(1)' },
-                    '50%': { transform: 'scale(1.05)' },
+                    '50%': { transform: 'scale(1.03)' },
                     '100%': { transform: 'scale(1)' }
                   }
                 }}
@@ -151,25 +152,25 @@ const Navbar = ({ onEmergencyClick }) => {
               </Button>
 
               {user ? (
-                <Box display="flex" alignItems="center" ml={2}>
-                  <IconButton onClick={(e) => setAnchorElNotif(e.currentTarget)}>
+                <Box sx={{ display: 'flex', alignItems: 'center', ml: 1.5 }}>
+                  <IconButton onClick={(e) => setAnchorElNotif(e.currentTarget)} sx={{ color: '#64748b', '&:hover': { color: '#0F766E', backgroundColor: '#E6F6F3' } }}>
                     <Badge badgeContent={unreadCount} color="error">
-                      <NotificationsIcon sx={{ color: '#64748b' }} />
+                      <NotificationsIcon />
                     </Badge>
                   </IconButton>
 
                   <IconButton onClick={(e) => setAnchorElUser(e.currentTarget)} sx={{ ml: 1 }}>
-                    <AccountCircle sx={{ color: theme.palette.primary.main, fontSize: 32 }} />
+                    <AccountCircle sx={{ color: '#0F766E', fontSize: 34 }} />
                   </IconButton>
                 </Box>
               ) : (
-                <Button variant="outlined" color="primary" component={RouterLink} to="/login" sx={{ ml: 2, textTransform: 'capitalize', fontWeight: 'bold' }}>
+                <Button variant="contained" color="primary" component={RouterLink} to="/login" sx={{ ml: 1.5, textTransform: 'none', fontWeight: '600', borderRadius: '10px', px: 2.5 }}>
                   Login
                 </Button>
               )}
             </Box>
           ) : (
-            <Box display="flex" alignItems="center">
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Button
                 variant="contained"
                 color="error"
@@ -195,8 +196,8 @@ const Navbar = ({ onEmergencyClick }) => {
 
       {/* Mobile Drawer Menu */}
       <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Box sx={{ width: 250, pt: 2 }} role="presentation">
-          <Typography variant="h6" fontWeight="bold" sx={{ px: 2, pb: 2, color: theme.palette.primary.main }}>
+        <Box sx={{ width: 250, p: 2 }}>
+          <Typography variant="h6" fontWeight="bold" color="#0F766E" mb={2}>
             SwasthyaSetu Menu
           </Typography>
           <Divider />
@@ -227,12 +228,14 @@ const Navbar = ({ onEmergencyClick }) => {
         anchorEl={anchorElNotif}
         open={Boolean(anchorElNotif)}
         onClose={() => setAnchorElNotif(null)}
-        PaperProps={{
-          sx: {
-            width: 320,
-            maxHeight: 400,
-            boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
-            borderRadius: '12px'
+        slotProps={{
+          paper: {
+            sx: {
+              width: 320,
+              maxHeight: 400,
+              boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+              borderRadius: '12px'
+            }
           }
         }}
       >

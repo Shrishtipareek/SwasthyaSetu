@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -8,101 +8,110 @@ import {
   Grid,
   Card,
   CardContent,
-  Avatar,
   Accordion,
   AccordionSummary,
-  AccordionDetails,
-  useTheme
+  AccordionDetails
 } from '@mui/material';
 import {
   Warning as WarningIcon,
-  LocalHospital,
   Speed,
-  People,
   ExpandMore,
   VerifiedUser,
   Share,
   CalendarMonth,
-  SmartToy
+  SmartToy,
+  ArrowForward
 } from '@mui/icons-material';
-import { hospitalAPI } from '../services/api';
+import heroImg from '../assets/hero.png';
 
-const LandingPage = ({ onEmergencyClick }) => {
-  const theme = useTheme();
+const LandingPage = ({ onEmergencyClick: _onEmergencyClick }) => {
   const navigate = useNavigate();
-  const [stats, setStats] = useState({
-    hospitalsConnected: 10,
-    availableBeds: 500,
-    availableAmbulances: 12,
-    bloodUnitsAvailable: 2500,
-  });
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const { data } = await hospitalAPI.getStats();
-        setStats(data);
-      } catch (err) {
-        console.warn('Failed to load live metrics, using seeds', err.message);
-      }
-    };
-    fetchStats();
-  }, []);
 
   return (
     <Box>
       {/* Hero Section */}
       <Box
         sx={{
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-          color: '#ffffff',
-          pt: { xs: 8, md: 14 },
-          pb: { xs: 8, md: 14 },
-          textAlign: 'center',
           position: 'relative',
-          overflow: 'hidden'
+          pt: { xs: 8, md: 12 },
+          pb: { xs: 8, md: 12 },
+          textAlign: 'center',
+          borderBottom: '1px solid #E2E8F0',
+          overflow: 'hidden',
+          color: '#FFFFFF'
         }}
       >
-        <Container maxWidth="lg">
+        {/* Blurred Medical Team Background Image */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundImage: `url(${heroImg})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center 20%',
+            filter: 'blur(2px)',
+            transform: 'scale(1.03)',
+            zIndex: 0
+          }}
+        />
+
+        {/* Dark Teal Transparent Overlay */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.65) 0%, rgba(15, 118, 110, 0.70) 60%, rgba(17, 94, 89, 0.75) 100%)',
+            zIndex: 1
+          }}
+        />
+
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, px: 2, py: 0.8, borderRadius: '20px', bgcolor: 'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(4px)', border: '1px solid rgba(255, 255, 255, 0.25)', mb: 3 }}>
+            <VerifiedUser sx={{ fontSize: 18, color: '#5EEAD4' }} />
+            <Typography variant="caption" fontWeight="bold" color="#FFFFFF">Centralized Healthcare Coordination Platform</Typography>
+          </Box>
+
           <Typography
             variant="h2"
-            fontWeight="bold"
-            sx={{ fontSize: { xs: '2.5rem', md: '3.75rem' }, mb: 2, lineHeight: 1.2 }}
+            fontWeight="800"
+            sx={{ fontSize: { xs: '2.5rem', md: '3.5rem' }, mb: 2, lineHeight: 1.2, color: '#FFFFFF', letterSpacing: '-0.02em', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}
           >
-            Healthcare Help, When You Need It Most.
+            Healthcare Help, <span style={{ color: '#5EEAD4' }}>When You Need It Most.</span>
           </Typography>
+
           <Typography
             variant="h6"
-            sx={{ color: '#94a3b8', mb: 5, maxWidth: '800px', mx: 'auto', fontWeight: 'normal', fontSize: { xs: '1rem', md: '1.25rem' } }}
+            sx={{ color: '#E2E8F0', mb: 5, maxWidth: '780px', mx: 'auto', fontWeight: '400', fontSize: { xs: '1rem', md: '1.2rem' }, lineHeight: 1.6, textShadow: '0 1px 4px rgba(0,0,0,0.4)' }}
           >
-            Connect with hospitals, find emergency resources, book doctor appointments, and get healthcare assistance — all from one platform.
+            Connect with hospitals, find real-time emergency resources, book doctor appointments, and get AI healthcare assistance — all from one platform.
           </Typography>
-          <Box display="flex" justifyContent="center" gap={2} flexWrap="wrap">
+
+          <Box sx={{ display: 'flex', justifyContent: 'center' }}>
             <Button
               variant="contained"
-              color="error"
               size="large"
-              startIcon={<WarningIcon />}
-              onClick={onEmergencyClick}
-              sx={{ px: 4, py: 1.5, fontSize: '1.1rem', fontWeight: 'bold' }}
-            >
-              Emergency Help
-            </Button>
-            <Button
-              variant="contained"
-              color="primary"
-              size="large"
+              startIcon={<CalendarMonth />}
               onClick={() => navigate('/search-hospitals')}
-              sx={{ px: 4, py: 1.5, fontSize: '1.1rem', fontWeight: 'bold' }}
-            >
-              Find Hospital
-            </Button>
-            <Button
-              variant="outlined"
-              color="inherit"
-              size="large"
-              onClick={() => navigate('/login')}
-              sx={{ px: 4, py: 1.5, fontSize: '1.1rem', fontWeight: 'bold', borderColor: '#475569' }}
+              sx={{
+                px: 5,
+                py: 1.6,
+                fontSize: '1.1rem',
+                fontWeight: '700',
+                borderRadius: '12px',
+                bgcolor: '#0F766E',
+                color: '#FFFFFF',
+                boxShadow: '0 6px 20px rgba(15, 118, 110, 0.35)',
+                '&:hover': {
+                  bgcolor: '#0D9488',
+                  boxShadow: '0 8px 25px rgba(13, 148, 136, 0.45)'
+                }
+              }}
             >
               Book Appointment
             </Button>
@@ -110,58 +119,158 @@ const LandingPage = ({ onEmergencyClick }) => {
         </Container>
       </Box>
 
-      {/* Aggregate Stats Bar */}
-      <Box sx={{ bgcolor: '#ffffff', py: 4, boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
+      {/* CareAI Symptom Checker Banner */}
+      <Box
+        sx={{
+          bgcolor: '#F0FDFA',
+          py: 5,
+          borderBottom: '1px solid #CCFBF1',
+          boxShadow: '0 4px 20px rgba(15, 118, 110, 0.04)'
+        }}
+      >
         <Container maxWidth="lg">
-          <Grid container spacing={3} textAlign="center">
-            {[
-              { label: 'Connected Hospitals', value: stats.hospitalsConnected, icon: <LocalHospital color="primary" /> },
-              { label: 'Available Beds', value: stats.availableBeds, icon: <Speed color="primary" /> },
-              { label: 'Active Ambulances', value: stats.availableAmbulances, icon: <Speed color="primary" /> },
-              { label: 'Blood Units Available', value: stats.bloodUnitsAvailable, icon: <People color="primary" /> }
-            ].map((stat, idx) => (
-              <Grid item xs={6} md={3} key={idx}>
-                <Box display="flex" flexDirection="column" alignItems="center">
-                  <Box sx={{ p: 1.5, bgcolor: '#f0f9ff', borderRadius: '50%', mb: 1 }}>
-                    {stat.icon}
-                  </Box>
-                  <Typography variant="h4" fontWeight="bold" color="#0f172a">
-                    {stat.value}
-                  </Typography>
-                  <Typography variant="body2" color="textSecondary">
-                    {stat.label}
-                  </Typography>
-                </Box>
-              </Grid>
-            ))}
-          </Grid>
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: { xs: 'column', md: 'row' },
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 3,
+              bgcolor: '#FFFFFF',
+              p: { xs: 3, md: 4 },
+              borderRadius: '20px',
+              border: '1px solid #CCFBF1',
+              boxShadow: '0 4px 16px rgba(15, 118, 110, 0.08)'
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
+              <Box
+                sx={{
+                  p: 2,
+                  borderRadius: '16px',
+                  bgcolor: '#E6F6F3',
+                  color: '#0F766E',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <SmartToy sx={{ fontSize: 38 }} />
+              </Box>
+              <Box>
+                <Typography variant="h5" fontWeight="800" color="#0F2C59" mb={0.5}>
+                  CareAI Symptom Checker
+                </Typography>
+                <Typography variant="body2" color="#64748B" sx={{ maxWidth: '580px', lineHeight: 1.6 }}>
+                  Analyze symptoms instantly 24/7 with artificial intelligence. Detect emergency warning signs, get triage risk advice, and match doctors.
+                </Typography>
+              </Box>
+            </Box>
+
+            <Button
+              variant="contained"
+              size="large"
+              onClick={() => navigate('/symptom-checker')}
+              endIcon={<ArrowForward />}
+              sx={{
+                py: 1.5,
+                px: 3.5,
+                fontSize: '1rem',
+                fontWeight: '700',
+                borderRadius: '12px',
+                bgcolor: '#0F766E',
+                color: '#FFFFFF',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 4px 14px rgba(15, 118, 110, 0.25)',
+                '&:hover': {
+                  bgcolor: '#0D9488',
+                  boxShadow: '0 6px 18px rgba(13, 148, 136, 0.35)'
+                }
+              }}
+            >
+              Start AI Symptom Check
+            </Button>
+          </Box>
         </Container>
       </Box>
 
       {/* Features Grid */}
-      <Box sx={{ py: 10, bgcolor: '#f8fafc' }}>
-        <Container maxWidth="lg">
-          <Typography variant="h4" textAlign="center" fontWeight="bold" mb={1} color="#0f172a">
+      <Box
+        sx={{
+          py: 10,
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
+        {/* Visible Blurred Background Image */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundImage: 'url(/medicine_bg.jpg)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'blur(12px)',
+            transform: 'scale(1.08)',
+            zIndex: 0
+          }}
+        />
+
+        {/* Light Translucent Frosted Overlay */}
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(240, 253, 250, 0.30) 50%, rgba(241, 245, 249, 0.35) 100%)',
+            zIndex: 1
+          }}
+        />
+
+        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
+          <Typography variant="h4" textAlign="center" fontWeight="800" mb={1} color="#1E293B">
             Our Emergency Network & Coordination Tools
           </Typography>
-          <Typography variant="body1" textAlign="center" color="textSecondary" mb={6}>
+          <Typography variant="body1" textAlign="center" color="#475569" mb={6} fontWeight="500">
             Designed to save crucial minutes during healthcare crises.
           </Typography>
           <Grid container spacing={4}>
             {[
-              { title: 'Emergency Finder', desc: 'Real-time GPS routing to nearby verified hospitals containing available ICU beds and emergency departments.', icon: <WarningIcon sx={{ fontSize: 40, color: '#dc2626' }} /> },
-              { title: 'Hospital-to-Hospital Sharing', desc: ' सेंट्रल resource requests that allow clinical administrators to request blood units, ICU beds, and ventilators from nearby network hospitals.', icon: <Share sx={{ fontSize: 40, color: '#0ea5e9' }} /> },
-              { title: 'CareAI Healthcare Assistant', desc: 'AI-driven chatbot available 24/7. Detects dangerous emergency symptoms, advises OTC categories for minor cold/fever, and maps doctors.', icon: <SmartToy sx={{ fontSize: 40, color: '#0d9488' }} /> },
-              { title: 'Smart Appointments', desc: 'Directly search specializations, filter doctors, check schedules, and schedule booking slots manually or via AI.', icon: <CalendarMonth sx={{ fontSize: 40, color: '#4f46e5' }} /> },
-              { title: 'Ambulance Systems', desc: 'Coordinate and check live ambulance driver directories to request transport dispatch directly to your coordinates.', icon: <Speed sx={{ fontSize: 40, color: '#f59e0b' }} /> },
-              { title: 'Verified Hospital Security', desc: 'Platform safeguards. Every hospital registration undergoes strict license verification before becoming visible.', icon: <VerifiedUser sx={{ fontSize: 40, color: '#22c55e' }} /> },
+              { title: 'Emergency Finder', desc: 'Real-time GPS routing to nearby verified hospitals containing available ICU beds and emergency departments.', icon: <WarningIcon sx={{ fontSize: 36, color: '#dc2626' }} /> },
+              { title: 'Hospital-to-Hospital Sharing', desc: 'Central resource requests that allow clinical administrators to request blood units, ICU beds, and ventilators from nearby network hospitals.', icon: <Share sx={{ fontSize: 36, color: '#0f766e' }} /> },
+              { title: 'CareAI Healthcare Assistant', desc: 'AI-driven chatbot available 24/7. Detects dangerous emergency symptoms, advises OTC categories for minor cold/fever, and maps doctors.', icon: <SmartToy sx={{ fontSize: 36, color: '#0f766e' }} /> },
+              { title: 'Smart Appointments', desc: 'Directly search specializations, filter doctors, check schedules, and schedule booking slots manually or via AI.', icon: <CalendarMonth sx={{ fontSize: 36, color: '#0f766e' }} /> },
+              { title: 'Ambulance Systems', desc: 'Coordinate and check live ambulance driver directories to request transport dispatch directly to your coordinates.', icon: <Speed sx={{ fontSize: 36, color: '#0f766e' }} /> },
+              { title: 'Verified Hospital Security', desc: 'Platform safeguards. Every hospital registration undergoes strict license verification before becoming visible.', icon: <VerifiedUser sx={{ fontSize: 36, color: '#0f766e' }} /> },
             ].map((f, idx) => (
               <Grid item xs={12} sm={6} md={4} key={idx}>
-                <Card sx={{ height: '100%', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: 'none' }}>
-                  <CardContent sx={{ p: 3 }}>
-                    <Box mb={2}>{f.icon}</Box>
-                    <Typography variant="h6" fontWeight="bold" gutterBottom color="#0f172a">{f.title}</Typography>
-                    <Typography variant="body2" color="textSecondary" sx={{ lineHeight: 1.6 }}>{f.desc}</Typography>
+                <Card
+                  sx={{
+                    height: '100%',
+                    borderRadius: '16px',
+                    bgcolor: 'rgba(255, 255, 255, 0.70)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 255, 255, 0.85)',
+                    boxShadow: '0 8px 32px rgba(15, 23, 42, 0.08)',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    '&:hover': {
+                      transform: 'translateY(-6px)',
+                      borderColor: '#0f766e',
+                      boxShadow: '0 14px 36px rgba(15, 118, 110, 0.2)',
+                      bgcolor: 'rgba(255, 255, 255, 0.88)'
+                    }
+                  }}
+                >
+                  <CardContent sx={{ p: 3.5 }}>
+                    <Box sx={{ p: 1.5, bgcolor: 'rgba(15, 118, 110, 0.1)', border: '1px solid rgba(15, 118, 110, 0.25)', width: 'fit-content', borderRadius: '12px', mb: 2.5 }}>{f.icon}</Box>
+                    <Typography variant="h6" fontWeight="700" gutterBottom color="#334155">{f.title}</Typography>
+                    <Typography variant="body2" color="#64748B" sx={{ lineHeight: 1.6 }}>{f.desc}</Typography>
                   </CardContent>
                 </Card>
               </Grid>

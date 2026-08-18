@@ -7,7 +7,6 @@ import {
   CardContent,
   Button,
   Box,
-  Divider,
   Paper,
   Tabs,
   Tab,
@@ -19,14 +18,12 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
+  TableRow,
+  Avatar
 } from '@mui/material';
 import {
   LocalHospital,
-  Bloodtype,
   People,
-  DriveEta,
-  Warning as WarningIcon,
   NotificationsActive
 } from '@mui/icons-material';
 import { hospitalAPI, doctorAPI, ambulanceAPI, campaignAPI } from '../services/api';
@@ -165,7 +162,7 @@ const HospitalDashboard = () => {
       setDocContact('');
       setSuccessMsg(`Dr. ${docName} added successfully.`);
       fetchStats();
-    } catch (err) {
+    } catch (_err) {
       setErrorMsg('Failed to add doctor.');
     }
   };
@@ -184,7 +181,7 @@ const HospitalDashboard = () => {
       setAmbContact('');
       setSuccessMsg('Ambulance registered successfully.');
       fetchStats();
-    } catch (err) {
+    } catch (_err) {
       setErrorMsg('Failed to register ambulance.');
     }
   };
@@ -205,7 +202,7 @@ const HospitalDashboard = () => {
       setCampDesc('');
       setCampVenue('');
       setSuccessMsg('Campaign drive published.');
-    } catch (err) {
+    } catch (_err) {
       setErrorMsg('Failed to create campaign.');
     }
   };
@@ -227,17 +224,17 @@ const HospitalDashboard = () => {
       {/* Grid Stats Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
-          { label: 'Total Available Beds', value: stats?.hospital?.beds?.available, icon: <LocalHospital />, color: '#0ea5e9' },
-          { label: 'ICU Beds Available', value: stats?.hospital?.beds?.icuAvailable, icon: <LocalHospital />, color: '#dc2626' },
-          { label: 'Doctors Available', value: stats?.doctorsCount, icon: <People />, color: '#0d9488' },
+          { label: 'Total Available Beds', value: stats?.hospital?.beds?.available, icon: <LocalHospital />, color: '#0F766E' },
+          { label: 'ICU Beds Available', value: stats?.hospital?.beds?.icuAvailable, icon: <LocalHospital />, color: '#0D9488' },
+          { label: 'Doctors Available', value: stats?.doctorsCount, icon: <People />, color: '#0F766E' },
           { label: 'Pending H2H Requests', value: stats?.pendingRequestsCount, icon: <NotificationsActive />, color: '#ea580c' }
         ].map((card, idx) => (
           <Grid item xs={12} sm={6} md={3} key={idx}>
-            <Card sx={{ borderLeft: `5px solid ${card.color}` }}>
+            <Card sx={{ borderLeft: `5px solid ${card.color}`, borderRadius: '12px', borderTop: '1px solid #E2E8F0', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
               <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
-                  <Typography variant="h4" fontWeight="bold" color="#0f172a">{card.value}</Typography>
-                  <Typography variant="body2" color="textSecondary">{card.label}</Typography>
+                  <Typography variant="h4" fontWeight="bold" color="#0F172A">{card.value}</Typography>
+                  <Typography variant="body2" color="#64748B">{card.label}</Typography>
                 </Box>
                 <Avatar sx={{ bgcolor: card.color, color: 'white' }}>{card.icon}</Avatar>
               </CardContent>
@@ -252,7 +249,14 @@ const HospitalDashboard = () => {
       <Tabs
         value={tabValue}
         onChange={(e, val) => setTabValue(val)}
-        sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}
+        sx={{
+          borderBottom: 1,
+          borderColor: '#E2E8F0',
+          mb: 4,
+          '& .MuiTab-root': { fontWeight: '600', textTransform: 'none', color: '#64748B' },
+          '& .Mui-selected': { color: '#0F766E' },
+          '& .MuiTabs-indicator': { backgroundColor: '#0F766E' }
+        }}
       >
         <Tab label="Inventory & Resource Manager" />
         <Tab label="Manage Staff / Doctors" />

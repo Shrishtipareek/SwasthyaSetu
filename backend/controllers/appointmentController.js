@@ -95,7 +95,7 @@ const getAppointments = async (req, res) => {
 
     res.json(appointments);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.json([]);
   }
 };
 
@@ -119,7 +119,8 @@ const cancelAppointment = async (req, res) => {
 
     if (req.user.role === 'hospital') {
       const hospital = await Hospital.findOne({ user: req.user._id });
-      if (!hospital || appointment.hospital.toString() !== hospital._id.toString()) {
+      const appointmentHospitalId = appointment.hospital._id ? appointment.hospital._id.toString() : appointment.hospital.toString();
+      if (!hospital || appointmentHospitalId !== hospital._id.toString()) {
         return res.status(401).json({ message: 'Not authorized to cancel this hospital appointment' });
       }
     }

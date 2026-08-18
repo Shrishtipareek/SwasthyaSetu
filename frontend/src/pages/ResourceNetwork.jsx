@@ -96,32 +96,32 @@ const ResourceNetwork = () => {
       <Grid container spacing={3} sx={{ mb: 6 }}>
         {hospitals.map((h) => (
           <Grid item xs={12} sm={6} md={4} key={h._id}>
-            <Card sx={{ border: '1px solid #e2e8f0', borderRadius: '16px', boxShadow: 'none', height: '100%' }}>
+            <Card sx={{ border: '1px solid #E2E8F0', borderRadius: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', height: '100%', transition: 'all 0.2s ease', '&:hover': { borderColor: '#0F766E', boxShadow: '0 6px 20px rgba(15, 118, 110, 0.08)' } }}>
               <CardContent sx={{ p: 3, display: 'flex', flexDirection: 'column', height: '100%' }}>
-                <Typography variant="h6" fontWeight="bold" color="#0f172a" gutterBottom>
+                <Typography variant="h6" fontWeight="bold" color="#0F172A" gutterBottom>
                   {h.name}
                 </Typography>
-                <Typography variant="caption" color="textSecondary" sx={{ mb: 2 }}>
+                <Typography variant="caption" color="#64748B" sx={{ mb: 2 }}>
                   {h.address}
                 </Typography>
                 <Divider sx={{ mb: 2 }} />
 
                 <Box display="flex" flexDirection="column" gap={1} sx={{ mb: 3, flexGrow: 1 }}>
                   <Box display="flex" justifyContent="space-between">
-                    <Typography variant="body2" color="textSecondary">ICU Beds Ready:</Typography>
-                    <Typography variant="body2" fontWeight="bold" color={h.beds?.icuAvailable > 0 ? 'success.main' : 'error.main'}>
+                    <Typography variant="body2" color="#64748B">ICU Beds Ready:</Typography>
+                    <Typography variant="body2" fontWeight="bold" color={h.beds?.icuAvailable > 0 ? '#0F766E' : 'error.main'}>
                       {h.beds?.icuAvailable || 0} units
                     </Typography>
                   </Box>
                   <Box display="flex" justifyContent="space-between">
-                    <Typography variant="body2" color="textSecondary">Emergency Beds:</Typography>
-                    <Typography variant="body2" fontWeight="bold" color={h.beds?.emergencyAvailable > 0 ? 'success.main' : 'error.main'}>
+                    <Typography variant="body2" color="#64748B">Emergency Beds:</Typography>
+                    <Typography variant="body2" fontWeight="bold" color={h.beds?.emergencyAvailable > 0 ? '#0F766E' : 'error.main'}>
                       {h.beds?.emergencyAvailable || 0} units
                     </Typography>
                   </Box>
                   <Box display="flex" justifyContent="space-between">
-                    <Typography variant="body2" color="textSecondary">O- Blood Units:</Typography>
-                    <Typography variant="body2" fontWeight="bold">
+                    <Typography variant="body2" color="#64748B">O- Blood Units:</Typography>
+                    <Typography variant="body2" fontWeight="bold" color="#0F172A">
                       {h.bloodInventory?.On?.availableUnits || 0} units
                     </Typography>
                   </Box>
@@ -129,11 +129,10 @@ const ResourceNetwork = () => {
 
                 <Button
                   variant="contained"
-                  color="secondary"
                   fullWidth
                   startIcon={<Send />}
                   onClick={() => handleOpenReq(h._id)}
-                  sx={{ fontWeight: 'bold' }}
+                  sx={{ fontWeight: 'bold', bgcolor: '#0F766E', '&:hover': { bgcolor: '#0D9488' } }}
                 >
                   Request Resource
                 </Button>

@@ -46,7 +46,6 @@ const UserSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-UserSchema.index({ email: 1 });
 UserSchema.index({ 'location': '2d' }); // index location for map searches
 
 UserSchema.pre('save', async function (next) {

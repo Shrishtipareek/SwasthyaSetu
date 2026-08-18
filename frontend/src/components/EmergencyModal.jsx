@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -8,20 +8,16 @@ import {
   Button,
   Grid,
   CircularProgress,
-  List,
-  ListItem,
-  ListItemText,
   Divider,
   Paper,
   Card,
   CardContent,
   Alert,
-  IconButton
+  IconButton,
+  Chip
 } from '@mui/material';
 import {
   Close as CloseIcon,
-  LocalHospital,
-  PinDrop,
   Phone,
   Directions,
   CheckCircle,
@@ -30,18 +26,6 @@ import {
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { emergencyAPI } from '../services/api';
-
-// Fix Leaflet marker icons in Vite/React
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
 
 // Custom Icon for User's Location (Red Pin)
 const redIcon = new L.Icon({
@@ -56,7 +40,7 @@ const redIcon = new L.Icon({
 const EmergencyModal = ({ open, onClose }) => {
   const [step, setStep] = useState(1); // 1: Select Type, 2: Locating/Loading, 3: Results
   const [selectedType, setSelectedType] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [userLocation, setUserLocation] = useState({ lat: 28.6139, lng: 77.2090 });
   const [errorMsg, setErrorMsg] = useState('');
@@ -65,7 +49,7 @@ const EmergencyModal = ({ open, onClose }) => {
     { label: 'ICU Bed', value: 'icu', color: '#dc2626' },
     { label: 'Emergency Bed', value: 'bed', color: '#dc2626' },
     { label: 'Ambulance', value: 'ambulance', color: '#ea580c' },
-    { label: 'Blood', value: 'blood', color: '#b91c1c' },
+    { label: 'Blood', value: 'blood', color: '#881337' },
     { label: 'Oxygen', value: 'oxygen', color: '#0284c7' },
     { label: 'Emergency Doctor', value: 'doctor', color: '#0d9488' },
     { label: 'Nearby Hospital', value: 'nearby_hospital', color: '#4f46e5' }
@@ -145,7 +129,7 @@ const EmergencyModal = ({ open, onClose }) => {
         }
       }}
     >
-      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: '#b91c1c', color: 'white', p: 2 }}>
+      <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: selectedType === 'blood' ? '#881337' : '#991b1b', color: 'white', p: 2 }}>
         <Box display="flex" alignItems="center" gap={1}>
           <WarningIcon />
           <Typography variant="h6" fontWeight="bold">EMERGENCY ASSISTANCE</Typography>
@@ -233,7 +217,7 @@ const EmergencyModal = ({ open, onClose }) => {
                         }}
                       >
                         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                          <Box display="flex" justifyContent="between" alignItems="start">
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <Box>
                               <Typography variant="subtitle1" fontWeight="bold" color="#0f172a">
                                 {rh.name} {index === 0 && <Chip label="BEST CHOICE" color="success" size="small" sx={{ ml: 1, height: 20 }} />}
