@@ -1,74 +1,122 @@
-const AIConversation = require('../models/AIConversation');
-const { getAIResponse } = require('../utils/gemini');
+const AIConversation = require("../models/AIConversation");
+const { getAIResponse } = require("../utils/gemini");
 
-// @desc    Get chat history
-// @route   GET /api/ai/history
-// @access  Public (Optional auth)
 const getHistory = async (req, res) => {
   try {
     const userId = req.user ? req.user._id : null;
-    
-    // For guest users, we would normally use a session ID. For simplicity,
-    // if no user, return empty array (or let them maintain local state)
+
     if (!userId) {
       return res.json([]);
     }
 
-    let conversation = await AIConversation.findOne({ user: userId });
+    let conversation =
+      await AIConversation.findOne({
+        user: userId,
+      });
+
     if (!conversation) {
-      conversation = await AIConversation.create({ user: userId, messages: [] });
+      conversation =
+        await AIConversation.create({
+          user: userId,
+          messages: [],
+        });
     }
 
-    res.json(conversation.messages);
+    return res.json(conversation.messages);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(
+      "AI history error:",
+      error.message
+    );
+
+    return res.status(500).json({
+      message: "Unable to load AI history.",
+    });
   }
 };
 
-// @desc    Send a message to CareAI and get a response
-// @route   POST /api/ai/chat
-// @access  Public (Optional auth)
 const sendMessageToAI = async (req, res) => {
   try {
     const { message } = req.body;
-    const userId = req.user ? req.user._id : null;
 
-    if (!message) {
-      return res.status(400).json({ message: 'Message content is required.' });
+    const userId = req.user
+      ? req.user._id
+      : null;
+
+    if (
+      !message ||
+      typeof message !== "string" ||
+      !message.trim()
+    ) {
+      return res.status(400).json({
+        message:
+          "Please describe your symptoms.",
+      });
     }
 
-    // Get previous chat history to provide context to Gemini
     let conversation = null;
     let history = [];
+
     if (userId) {
-      conversation = await AIConversation.findOne({ user: userId });
+      conversation =
+        await AIConversation.findOne({
+          user: userId,
+        });
+
       if (!conversation) {
-        conversation = await AIConversation.create({ user: userId, messages: [] });
+        conversation =
+          await AIConversation.create({
+            user: userId,
+            messages: [],
+          });
       }
-      history = conversation.messages.slice(-10); // last 10 messages
+
+      history =
+        conversation.messages.slice(-10);
     }
 
-    // Fetch response from Gemini / local rules engine
-    const aiResult = await getAIResponse(message, history);
+    const aiResult = await getAIResponse(
+      message.trim(),
+      history
+    );
 
-    // Save history if user is logged in
     if (userId && conversation) {
-      conversation.messages.push({ sender: 'user', text: message });
-      conversation.messages.push({ sender: 'ai', text: aiResult.reply });
+      conversation.messages.push({
+        sender: "user",
+        text: message.trim(),
+      });
+
+      conversation.messages.push({
+        sender: "ai",
+        text: aiResult.reply,
+      });
+
       await conversation.save();
     }
 
-    res.json({
+    return res.json({
+      success: true,
       reply: aiResult.reply,
-      isEmergency: aiResult.isEmergency || false,
-      suggestAppointment: aiResult.suggestAppointment || false
+      isEmergency:
+        aiResult.isEmergency || false,
+      suggestAppointment:
+        aiResult.suggestAppointment || false,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error(
+      "AI controller error:",
+      error.message
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        "Unable to generate AI response.",
+    });
   }
 };
 
 module.exports = {
   getHistory,
-  sendMessageToAI
+  sendMessageToAI,
 };
