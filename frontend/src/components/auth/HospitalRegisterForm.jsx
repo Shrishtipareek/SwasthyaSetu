@@ -45,18 +45,18 @@ const HospitalRegisterForm = ({
         onChange={(e) => setName(e.target.value)}
         required
         sx={{ mb: 2 }}
-        InputProps={{
+        slotProps={{ input: {
           sx: fieldInputStyle,
           startAdornment: (
             <InputAdornment position="start">
               <LocalHospital sx={{ color: '#0F766E', fontSize: 20 }} />
             </InputAdornment>
           ),
-        }}
+        } }}
       />
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <TextField
             fullWidth
             label="Official Hospital Email"
@@ -65,17 +65,17 @@ const HospitalRegisterForm = ({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            InputProps={{
+            slotProps={{ input: {
               sx: fieldInputStyle,
               startAdornment: (
                 <InputAdornment position="start">
                   <EmailOutlined sx={{ color: '#0F766E', fontSize: 20 }} />
                 </InputAdornment>
               ),
-            }}
+            } }}
           />
         </Grid>
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <TextField
             fullWidth
             label="General Help Desk Phone"
@@ -83,20 +83,20 @@ const HospitalRegisterForm = ({
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
             required
-            InputProps={{
+            slotProps={{ input: {
               sx: fieldInputStyle,
               startAdornment: (
                 <InputAdornment position="start">
                   <PhoneOutlined sx={{ color: '#0F766E', fontSize: 20 }} />
                 </InputAdornment>
               ),
-            }}
+            } }}
           />
         </Grid>
       </Grid>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <TextField
             fullWidth
             label="Medical License Number"
@@ -104,17 +104,17 @@ const HospitalRegisterForm = ({
             value={licenseNumber}
             onChange={(e) => setLicenseNumber(e.target.value)}
             required
-            InputProps={{
+            slotProps={{ input: {
               sx: fieldInputStyle,
               startAdornment: (
                 <InputAdornment position="start">
                   <BadgeOutlined sx={{ color: '#0F766E', fontSize: 20 }} />
                 </InputAdornment>
               ),
-            }}
+            } }}
           />
         </Grid>
-        <Grid item xs={12} sm={6}>
+        <Grid size={{ xs: 12, sm: 6 }}>
           <TextField
             fullWidth
             label="24/7 Emergency Hotline"
@@ -122,20 +122,20 @@ const HospitalRegisterForm = ({
             value={emergencyPhone}
             onChange={(e) => setEmergencyPhone(e.target.value)}
             required
-            InputProps={{
+            slotProps={{ input: {
               sx: fieldInputStyle,
               startAdornment: (
                 <InputAdornment position="start">
                   <CallOutlined sx={{ color: '#DC2626', fontSize: 20 }} />
                 </InputAdornment>
               ),
-            }}
+            } }}
           />
         </Grid>
       </Grid>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} sm={8}>
+        <Grid size={{ xs: 12, sm: 8 }}>
           <TextField
             fullWidth
             label="Physical Street Address"
@@ -143,24 +143,24 @@ const HospitalRegisterForm = ({
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             required
-            InputProps={{
+            slotProps={{ input: {
               sx: fieldInputStyle,
               startAdornment: (
                 <InputAdornment position="start">
                   <LocationOnOutlined sx={{ color: '#0F766E', fontSize: 20 }} />
                 </InputAdornment>
               ),
-            }}
+            } }}
           />
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <TextField
             select
             fullWidth
             label="Hospital Type"
             value={hospitalType}
             onChange={(e) => setHospitalType(e.target.value)}
-            InputProps={{ sx: fieldInputStyle }}
+            slotProps={{ input: { sx: fieldInputStyle } }}
           >
             <MenuItem value="Private">Private</MenuItem>
             <MenuItem value="Government">Government</MenuItem>
@@ -171,24 +171,24 @@ const HospitalRegisterForm = ({
       </Grid>
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={6}>
+        <Grid size={6}>
           <TextField
             fullWidth
             label="Latitude"
             type="number"
             value={lat}
             onChange={(e) => setLat(e.target.value)}
-            InputProps={{ sx: fieldInputStyle }}
+            slotProps={{ input: { sx: fieldInputStyle } }}
           />
         </Grid>
-        <Grid item xs={6}>
+        <Grid size={6}>
           <TextField
             fullWidth
             label="Longitude"
             type="number"
             value={lng}
             onChange={(e) => setLng(e.target.value)}
-            InputProps={{ sx: fieldInputStyle }}
+            slotProps={{ input: { sx: fieldInputStyle } }}
           />
         </Grid>
       </Grid>
@@ -203,7 +203,7 @@ const HospitalRegisterForm = ({
         required
         helperText="Minimum 6 characters"
         sx={{ mb: 3 }}
-        InputProps={{
+        slotProps={{ input: {
           sx: fieldInputStyle,
           startAdornment: (
             <InputAdornment position="start">
@@ -217,7 +217,7 @@ const HospitalRegisterForm = ({
               </IconButton>
             </InputAdornment>
           ),
-        }}
+        } }}
       />
 
       <Button

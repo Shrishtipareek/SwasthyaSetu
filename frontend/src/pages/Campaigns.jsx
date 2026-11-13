@@ -143,9 +143,9 @@ const Campaigns = () => {
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} mb={4} flexWrap="wrap" gap={2}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'center' }, mb: 4, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h4" fontWeight="800" color="#0F172A" sx={{ letterSpacing: '-0.02em' }}>
+          <Typography variant="h4" sx={{ fontWeight: '800', color: '#0F172A', letterSpacing: '-0.02em' }}>
             Community Health Campaigns & Drives
           </Typography>
           <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
@@ -153,7 +153,7 @@ const Campaigns = () => {
           </Typography>
         </Box>
 
-        <Box display="flex" gap={1.5} alignItems="center">
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
           {isHospitalOrAdmin && (
             <Button
               variant="contained"
@@ -179,8 +179,8 @@ const Campaigns = () => {
 
       {/* Filter Bar */}
       <Paper elevation={0} sx={{ p: 2, border: '1px solid #E2E8F0', borderRadius: '12px', mb: 4, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-        <Box display="flex" alignItems="center" gap={1.5}>
-          <Typography variant="body2" fontWeight="bold" color="#475569">
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#475569' }}>
             Filter Drive Type:
           </Typography>
           <TextField
@@ -216,16 +216,16 @@ const Campaigns = () => {
       {loading ? (
         <Grid container spacing={3}>
           {[1, 2, 3, 4].map((item) => (
-            <Grid item xs={12} md={6} key={item}>
+            <Grid key={item} size={{ xs: 12, md: 6 }}>
               <Card sx={{ border: '1px solid #E2E8F0', borderRadius: '14px', p: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <Box display="flex" justifyContent="space-between" mb={2}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                   <Skeleton variant="text" width="60%" height={32} />
                   <Skeleton variant="rounded" width={90} height={24} sx={{ borderRadius: '12px' }} />
                 </Box>
                 <Skeleton variant="text" width="90%" height={20} />
                 <Skeleton variant="text" width="75%" height={20} sx={{ mb: 2 }} />
                 <Divider sx={{ mb: 2 }} />
-                <Box display="flex" flexDirection="column" gap={1.5} sx={{ mb: 3 }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5, mb: 3 }}>
                   <Skeleton variant="text" width="50%" height={24} />
                   <Skeleton variant="text" width="65%" height={24} />
                   <Skeleton variant="text" width="55%" height={24} />
@@ -236,9 +236,9 @@ const Campaigns = () => {
           ))}
         </Grid>
       ) : campaigns.length === 0 ? (
-        <Box py={8} textAlign="center" sx={{ border: '1px dashed #CBD5E1', borderRadius: '16px', bgcolor: '#F8FAFC' }}>
+        <Box sx={{ py: 8, textAlign: 'center', border: '1px dashed #CBD5E1', borderRadius: '16px', bgcolor: '#F8FAFC' }}>
           <CampaignIcon sx={{ fontSize: 52, color: '#94A3B8', mb: 1.5 }} />
-          <Typography variant="h6" fontWeight="bold" color="#334155" gutterBottom>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#334155' }}>
             No Health Campaigns Scheduled Currently
           </Typography>
           <Typography variant="body2" color="textSecondary" sx={{ maxWidth: 500, mx: 'auto', mb: 3 }}>
@@ -265,7 +265,7 @@ const Campaigns = () => {
             const hostName = camp.hospital?.name || camp.organizer || 'SwasthyaSetu Healthcare Network';
 
             return (
-              <Grid item xs={12} md={6} key={camp._id}>
+              <Grid key={camp._id} size={{ xs: 12, md: 6 }}>
                 <Card sx={{
                   border: '1px solid #E2E8F0',
                   borderRadius: '14px',
@@ -274,11 +274,11 @@ const Campaigns = () => {
                   '&:hover': { borderColor: '#0F766E', boxShadow: '0 6px 20px rgba(15, 118, 110, 0.08)' }
                 }}>
                   <CardContent sx={{ p: 3 }}>
-                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={1} mb={1.5}>
-                      <Typography variant="h6" fontWeight="800" color="#0F172A" sx={{ lineHeight: 1.3 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1, mb: 1.5 }}>
+                      <Typography variant="h6" sx={{ fontWeight: '800', color: '#0F172A', lineHeight: 1.3 }}>
                         {camp.title}
                       </Typography>
-                      <Box display="flex" gap={0.5} flexWrap="wrap">
+                      <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
                         <Chip
                           label={formatTypeLabel(camp.type)}
                           size="small"
@@ -304,31 +304,31 @@ const Campaigns = () => {
                       </Box>
                     </Box>
 
-                    <Typography variant="body2" color="#64748B" sx={{ mb: 2, lineHeight: 1.6, minHeight: 44 }}>
+                    <Typography variant="body2" sx={{ color: '#64748B', mb: 2, lineHeight: 1.6, minHeight: 44 }}>
                       {camp.description}
                     </Typography>
                     <Divider sx={{ mb: 2 }} />
 
-                    <Box display="flex" flexDirection="column" gap={1.2} sx={{ mb: 3 }}>
-                      <Box display="flex" alignItems="center" gap={1}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.2, mb: 3 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <CalendarMonth sx={{ color: '#0F766E', fontSize: 19 }} />
-                        <Typography variant="body2" color="#0F172A">
+                        <Typography variant="body2" sx={{ color: '#0F172A' }}>
                           Schedule: <strong>{camp.date}</strong> | {camp.time}
                         </Typography>
                       </Box>
-                      <Box display="flex" alignItems="center" gap={1}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <LocationOn sx={{ color: '#0F766E', fontSize: 19 }} />
-                        <Typography variant="body2" color="#0F172A">
+                        <Typography variant="body2" sx={{ color: '#0F172A' }}>
                           Venue: <strong>{camp.venue}</strong>
                         </Typography>
                       </Box>
-                      <Box display="flex" alignItems="center" gap={1}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <LocalActivity sx={{ color: '#0F766E', fontSize: 19 }} />
-                        <Typography variant="body2" color="#0F172A">
+                        <Typography variant="body2" sx={{ color: '#0F172A' }}>
                           Organizer: <strong>{hostName}</strong>
                         </Typography>
                       </Box>
-                      <Box display="flex" alignItems="center" gap={1}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                         <PeopleAlt sx={{ color: '#64748B', fontSize: 19 }} />
                         <Typography variant="caption" color="textSecondary">
                           Registered Attendees: <strong>{camp.registeredUsers?.length || 0}</strong>
@@ -383,7 +383,7 @@ const Campaigns = () => {
         onClose={() => setCreateModalOpen(false)}
         maxWidth="sm"
         fullWidth
-        PaperProps={{ sx: { borderRadius: '14px', p: 1 } }}
+        slotProps={{ paper: { sx: { borderRadius: '14px', p: 1 } } }}
       >
         <DialogTitle sx={{ fontWeight: 'bold', color: '#0F172A', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           Publish New Community Health Drive
@@ -430,18 +430,18 @@ const Campaigns = () => {
               <MenuItem value="awareness">Health Awareness</MenuItem>
             </TextField>
             <Grid container spacing={2} sx={{ mb: 2 }}>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Date"
                   type="date"
-                  InputLabelProps={{ shrink: true }}
                   fullWidth
                   required
                   value={newDate}
                   onChange={(e) => setNewDate(e.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <TextField
                   label="Time Range"
                   fullWidth

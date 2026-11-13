@@ -17,17 +17,19 @@ import {
   People,
   NotificationsActive
 } from '@mui/icons-material';
-import { hospitalAPI, doctorAPI, ambulanceAPI, campaignAPI } from '../services/api';
+import { hospitalAPI, doctorAPI, ambulanceAPI, campaignAPI, emergencyAPI, getErrorMessage } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import HospitalInventoryTab from '../components/hospital/HospitalInventoryTab';
 import HospitalDoctorsTab from '../components/hospital/HospitalDoctorsTab';
 import HospitalAmbulanceTab from '../components/hospital/HospitalAmbulanceTab';
 import HospitalCampaignTab from '../components/hospital/HospitalCampaignTab';
+import HospitalEmergencyTab from '../components/hospital/HospitalEmergencyTab';
 
 const HospitalDashboard = () => {
   const socket = useSocket();
-  const [tabValue, setTabValue] = useState(0); // 0: Inventory, 1: Doctors, 2: Ambulances, 3: Campaigns
+  const [tabValue, setTabValue] = useState(0); // 0: Inventory, 1: Doctors, 2: Ambulances, 3: Campaigns, 4: Emergencies
   const [stats, setStats] = useState(null);
+  const [emergencies, setEmergencies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
@@ -60,12 +62,15 @@ const HospitalDashboard = () => {
     Ap: 0, An: 0, Bp: 0, Bn: 0, Op: 0, On: 0, ABp: 0, ABn: 0
   });
 
-  const fetchStats = useCallback(async () => {
+  // syncForm=false is used for background refreshes (socket events) so a hospital
+  // admin's unsaved inventory edits are not overwritten while typing; every
+  // hospital's inventory save broadcasts `resource_update` to all clients.
+  const fetchStats = useCallback(async ({ syncForm = true } = {}) => {
     try {
       const { data } = await hospitalAPI.getDashboardStats();
       setStats(data);
 
-      if (data.hospital) {
+      if (data.hospital && syncForm) {
         setTotalBeds(data.hospital.beds?.total || 0);
         setOccupiedBeds(data.hospital.beds?.occupied || 0);
         setIcuAvailable(data.hospital.beds?.icuAvailable || 0);
@@ -91,23 +96,50 @@ const HospitalDashboard = () => {
     }
   }, []);
 
+  const fetchEmergencies = useCallback(async () => {
+    try {
+      const { data } = await emergencyAPI.getHospitalEmergencies();
+      setEmergencies(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err.message);
+    }
+  }, []);
+
   useEffect(() => {
     fetchStats();
-  }, [fetchStats]);
+    fetchEmergencies();
+  }, [fetchStats, fetchEmergencies]);
 
   useEffect(() => {
-    if (socket) {
-      socket.on('resource_request_received', () => fetchStats());
-      socket.on('new_appointment', () => fetchStats());
-      socket.on('resource_update', () => fetchStats());
+    if (!socket) return undefined;
+    const refreshStats = () => fetchStats({ syncForm: false });
+    socket.on('resource_request_received', refreshStats);
+    socket.on('new_appointment', refreshStats);
+    socket.on('resource_update', refreshStats);
+    socket.on('emergency_alert_received', fetchEmergencies);
 
-      return () => {
-        socket.off('resource_request_received');
-        socket.off('new_appointment');
-        socket.off('resource_update');
-      };
+    // Remove only these handlers: socket.off(event) without a handler also removes
+    // listeners that other components (e.g. the Navbar) registered.
+    return () => {
+      socket.off('resource_request_received', refreshStats);
+      socket.off('new_appointment', refreshStats);
+      socket.off('resource_update', refreshStats);
+      socket.off('emergency_alert_received', fetchEmergencies);
+    };
+  }, [socket, fetchStats, fetchEmergencies]);
+
+  const handleEmergencyStatus = async (id, status) => {
+    setSuccessMsg('');
+    setErrorMsg('');
+    try {
+      await emergencyAPI.updateStatus(id, { status });
+      setSuccessMsg(`Emergency request updated: ${status.replace('_', ' ')}.`);
+      fetchEmergencies();
+      fetchStats({ syncForm: false });
+    } catch (err) {
+      setErrorMsg(getErrorMessage(err, 'Failed to update emergency request.'));
     }
-  }, [socket, fetchStats]);
+  };
 
   const handleUpdateInventory = async (e) => {
     e.preventDefault();
@@ -137,7 +169,8 @@ const HospitalDashboard = () => {
       setSuccessMsg('Inventory resources updated successfully!');
       fetchStats();
     } catch (err) {
-      setErrorMsg(err.message || 'Failed to update inventory.');
+      // err.message is axios' generic "Request failed with status code 400".
+      setErrorMsg(getErrorMessage(err, 'Failed to update inventory.'));
     }
   };
 
@@ -213,8 +246,8 @@ const HospitalDashboard = () => {
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
       {/* Header */}
-      <Box mb={4}>
-        <Typography variant="h4" fontWeight="bold" color="#0f172a">
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#0f172a' }}>
           {stats?.hospital?.name}
         </Typography>
         <Typography variant="body2" color="textSecondary">
@@ -230,12 +263,12 @@ const HospitalDashboard = () => {
           { label: 'Doctors Registered', value: stats?.doctorsCount ?? 0, icon: <People />, color: '#0F766E' },
           { label: 'Pending H2H Requests', value: stats?.pendingRequestsCount ?? 0, icon: <NotificationsActive />, color: '#ea580c' }
         ].map((card, idx) => (
-          <Grid item xs={12} sm={6} md={3} key={idx}>
+          <Grid key={idx} size={{ xs: 12, sm: 6, md: 3 }}>
             <Card sx={{ borderLeft: `5px solid ${card.color}`, borderRadius: '12px', borderTop: '1px solid #E2E8F0', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
               <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
-                  <Typography variant="h4" fontWeight="bold" color="#0F172A">{card.value}</Typography>
-                  <Typography variant="body2" color="#64748B">{card.label}</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#0F172A' }}>{card.value}</Typography>
+                  <Typography variant="body2" sx={{ color: '#64748B' }}>{card.label}</Typography>
                 </Box>
                 <Avatar sx={{ bgcolor: card.color, color: 'white' }}>{card.icon}</Avatar>
               </CardContent>
@@ -263,6 +296,7 @@ const HospitalDashboard = () => {
         <Tab label="Manage Staff / Doctors" />
         <Tab label="Manage Ambulance Fleet" />
         <Tab label="Host Health Drives" />
+        <Tab label={`Emergency Intake${emergencies.filter((e) => e.status !== 'completed').length ? ` (${emergencies.filter((e) => e.status !== 'completed').length})` : ''}`} />
       </Tabs>
 
       {/* Tab 0: Inventory Manager */}
@@ -310,6 +344,11 @@ const HospitalDashboard = () => {
           campVenue={campVenue} setCampVenue={setCampVenue}
           handleCreateCampaign={handleCreateCampaign}
         />
+      )}
+
+      {/* Tab 4: Emergency Intake (SOS requests routed to this hospital) */}
+      {tabValue === 4 && (
+        <HospitalEmergencyTab emergencies={emergencies} onUpdateStatus={handleEmergencyStatus} />
       )}
     </Container>
   );

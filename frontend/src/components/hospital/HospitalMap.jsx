@@ -104,14 +104,14 @@ const HospitalMap = ({
           <Marker position={[userCoords.lat, userCoords.lng]} icon={userIcon}>
             <Popup>
               <Box sx={{ p: 0.5, minWidth: '160px' }}>
-                <Typography variant="subtitle2" fontWeight="bold" color="#0F766E">
+                <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#0F766E' }}>
                   📍 Your Detected Location
                 </Typography>
-                <Typography variant="caption" color="textSecondary" display="block">
+                <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
                   Search radius: <strong>{radiusKm} km</strong>
                 </Typography>
                 {userCoords.displayName && (
-                  <Typography variant="caption" color="textSecondary" display="block" sx={{ mt: 0.5 }}>
+                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 0.5 }}>
                     {userCoords.displayName}
                   </Typography>
                 )}
@@ -142,26 +142,26 @@ const HospitalMap = ({
             >
               <Popup>
                 <Box sx={{ p: 0.5, maxWidth: '240px' }}>
-                  <Box display="flex" alignItems="center" gap={0.5} mb={0.5}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
                     <Chip
                       label={hosp.category || 'Facility'}
                       size="small"
                       sx={{ height: '18px', fontSize: '0.65rem', fontWeight: 'bold' }}
                     />
                     {hosp.distanceKm != null && (
-                      <Typography variant="caption" fontWeight="bold" color="#0F766E">
+                      <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#0F766E' }}>
                         {hosp.distanceKm} km
                       </Typography>
                     )}
                   </Box>
-                  <Typography variant="subtitle2" fontWeight="bold" color="#0F172A" sx={{ lineHeight: 1.3, mb: 0.5 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#0F172A', lineHeight: 1.3, mb: 0.5 }}>
                     {hosp.name}
                   </Typography>
                   <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mb: 1, lineHeight: 1.3 }}>
                     {hosp.address}
                   </Typography>
 
-                  <Box display="flex" gap={1}>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
                     <Button
                       size="small"
                       variant="contained"

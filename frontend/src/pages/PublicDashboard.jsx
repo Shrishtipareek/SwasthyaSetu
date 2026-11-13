@@ -158,7 +158,7 @@ const PublicDashboard = () => {
     <Container maxWidth="lg" sx={{ py: 6 }}>
       {/* Page Header */}
       <Box sx={{ mb: 4, textAlign: 'center' }}>
-        <Typography variant="h4" fontWeight="800" color="#0F172A" gutterBottom sx={{ letterSpacing: '-0.02em' }}>
+        <Typography variant="h4" gutterBottom sx={{ fontWeight: '800', color: '#0F172A', letterSpacing: '-0.02em' }}>
           Public Healthcare Resource Aggregates
         </Typography>
         <Typography variant="body1" color="textSecondary" sx={{ maxWidth: '640px', mx: 'auto' }}>
@@ -176,9 +176,9 @@ const PublicDashboard = () => {
       <Grid container spacing={3} sx={{ mb: 6 }}>
         {loading ? (
           [1, 2, 3, 4, 5, 6].map((item) => (
-            <Grid item xs={12} sm={6} md={4} key={item}>
+            <Grid key={item} size={{ xs: 12, sm: 6, md: 4 }}>
               <Card sx={{ border: '1px solid #E2E8F0', borderRadius: '14px', p: 3, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                <Box display="flex" alignItems="center" gap={2.5}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
                   <Skeleton variant="rounded" width={56} height={56} sx={{ borderRadius: '14px' }} />
                   <Box sx={{ flex: 1 }}>
                     <Skeleton variant="text" width="50%" height={40} />
@@ -192,7 +192,7 @@ const PublicDashboard = () => {
           metricCards.map((item) => {
             const isClickable = Boolean(item.clickable);
             return (
-              <Grid item xs={12} sm={6} md={4} key={item.id}>
+              <Grid key={item.id} size={{ xs: 12, sm: 6, md: 4 }}>
                 <Card
                   onClick={isClickable ? handleOpenHospitalModal : undefined}
                   sx={{
@@ -212,15 +212,15 @@ const PublicDashboard = () => {
                   }}
                 >
                   <CardContent sx={{ p: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <Box display="flex" alignItems="center" gap={2.5}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
                       <Box sx={{ p: 2, bgcolor: isClickable ? '#E6F6F3' : '#F8FAFC', borderRadius: '14px' }}>
                         {item.icon}
                       </Box>
                       <Box>
-                        <Typography variant="h4" fontWeight="800" color="#0F172A">
+                        <Typography variant="h4" sx={{ fontWeight: '800', color: '#0F172A' }}>
                           {item.value}
                         </Typography>
-                        <Typography variant="body2" color="#64748B" fontWeight="600">
+                        <Typography variant="body2" sx={{ color: '#64748B', fontWeight: '600' }}>
                           {item.label}
                         </Typography>
                         {isClickable && (
@@ -240,10 +240,10 @@ const PublicDashboard = () => {
 
       {/* Info Card */}
       <Paper elevation={0} sx={{ p: 4, bgcolor: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '14px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <Typography variant="h6" fontWeight="bold" color="#0F172A" sx={{ mb: 1 }}>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#0F172A', mb: 1 }}>
           Data Freshness & Transparency Standard
         </Typography>
-        <Typography variant="body2" color="#64748B" sx={{ lineHeight: 1.6 }}>
+        <Typography variant="body2" sx={{ color: '#64748B', lineHeight: 1.6 }}>
           All resource metrics displayed on SwasthyaSetu are directly synchronized from participating hospital clinical administration databases via Socket.IO real-time events. In emergency situations, bed or blood availability can fluctuate within minutes. Always verify critical admissions by calling the hospital emergency desk directly.
         </Typography>
       </Paper>
@@ -254,11 +254,11 @@ const PublicDashboard = () => {
         onClose={() => setHospitalModalOpen(false)}
         maxWidth="md"
         fullWidth
-        PaperProps={{ sx: { borderRadius: '16px', p: 1 } }}
+        slotProps={{ paper: { sx: { borderRadius: '16px', p: 1 } } }}
       >
         <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', pb: 1 }}>
           <Box>
-            <Typography variant="h6" fontWeight="800" color="#0F172A">
+            <Typography variant="h6" sx={{ fontWeight: '800', color: '#0F172A' }}>
               Connected Hospitals & Healthcare Facilities
             </Typography>
             <Typography variant="caption" color="textSecondary">
@@ -279,16 +279,16 @@ const PublicDashboard = () => {
           )}
 
           {hospitalListLoading ? (
-            <Box py={6} textAlign="center">
+            <Box sx={{ py: 6, textAlign: 'center' }}>
               <CircularProgress size={36} sx={{ color: '#0F766E', mb: 2 }} />
               <Typography variant="body2" color="textSecondary">
                 Fetching connected hospitals from database...
               </Typography>
             </Box>
           ) : hospitalList.length === 0 ? (
-            <Box py={8} textAlign="center" sx={{ border: '1px dashed #CBD5E1', borderRadius: '14px', bgcolor: '#F8FAFC' }}>
+            <Box sx={{ py: 8, textAlign: 'center', border: '1px dashed #CBD5E1', borderRadius: '14px', bgcolor: '#F8FAFC' }}>
               <LocalHospital sx={{ fontSize: 52, color: '#94A3B8', mb: 1.5 }} />
-              <Typography variant="h6" fontWeight="bold" color="#334155" gutterBottom>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#334155' }}>
                 No Connected Hospitals Registered Yet
               </Typography>
               <Typography variant="body2" color="textSecondary" sx={{ maxWidth: 460, mx: 'auto', mb: 3 }}>
@@ -308,7 +308,7 @@ const PublicDashboard = () => {
           ) : (
             <Grid container spacing={2.5}>
               {hospitalList.map((hosp) => (
-                <Grid item xs={12} sm={6} key={hosp._id || hosp.id}>
+                <Grid key={hosp._id || hosp.id} size={{ xs: 12, sm: 6 }}>
                   <Card sx={{
                     border: '1px solid #E2E8F0',
                     borderRadius: '12px',
@@ -317,8 +317,8 @@ const PublicDashboard = () => {
                     '&:hover': { borderColor: '#0F766E', boxShadow: '0 4px 14px rgba(15, 118, 110, 0.08)' }
                   }}>
                     <CardContent sx={{ p: 2.5 }}>
-                      <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={1} mb={1}>
-                        <Typography variant="subtitle1" fontWeight="800" color="#0F172A" sx={{ lineHeight: 1.3 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1, mb: 1 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: '800', color: '#0F172A', lineHeight: 1.3 }}>
                           {hosp.name}
                         </Typography>
                         <Chip
@@ -329,7 +329,7 @@ const PublicDashboard = () => {
                         />
                       </Box>
 
-                      <Box display="flex" alignItems="center" gap={1} mb={1} flexWrap="wrap">
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
                         <Chip
                           label={hosp.hospitalType || 'Hospital'}
                           size="small"
@@ -351,14 +351,14 @@ const PublicDashboard = () => {
                         )}
                       </Box>
 
-                      <Typography variant="body2" color="#64748B" sx={{ mb: 1.5, display: 'flex', alignItems: 'flex-start', gap: 0.5, lineHeight: 1.4 }}>
+                      <Typography variant="body2" sx={{ color: '#64748B', mb: 1.5, display: 'flex', alignItems: 'flex-start', gap: 0.5, lineHeight: 1.4 }}>
                         <LocationOn fontSize="small" sx={{ color: '#94A3B8', mt: 0.2, flexShrink: 0 }} />
                         <span>{hosp.address || 'Address registered on network'}</span>
                       </Typography>
 
                       <Divider sx={{ my: 1.5 }} />
 
-                      <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
                         {(hosp.emergencyPhone || hosp.contactPhone) && (
                           <Button
                             size="small"

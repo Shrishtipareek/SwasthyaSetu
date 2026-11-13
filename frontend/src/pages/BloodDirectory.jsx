@@ -73,8 +73,8 @@ const BloodDirectory = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
-      <Box mb={4}>
-        <Typography variant="h4" fontWeight="bold" color="#0f172a">
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#0f172a' }}>
           Voluntary Blood Donor Directory
         </Typography>
         <Typography variant="body2" color="textSecondary">
@@ -90,10 +90,10 @@ const BloodDirectory = () => {
 
       <Grid container spacing={3}>
         {/* Filters Panel */}
-        <Grid item xs={12} md={3}>
+        <Grid size={{ xs: 12, md: 3 }}>
           <Paper elevation={0} sx={{ p: 3, border: '1px solid #E2E8F0', borderRadius: '14px', bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="subtitle1" fontWeight="bold" color="#0F172A">Filter Donors</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#0F172A' }}>Filter Donors</Typography>
               {(bloodGroup || cityArea) && (
                 <Button size="small" onClick={handleResetFilters} sx={{ textTransform: 'none', color: '#0F766E', p: 0 }}>
                   Reset
@@ -123,7 +123,7 @@ const BloodDirectory = () => {
               size="small"
               value={cityArea}
               onChange={(e) => setCityArea(e.target.value)}
-              InputProps={{
+              slotProps={{ input: {
                 startAdornment: (
                   <InputAdornment position="start">
                     <Search sx={{ color: '#94A3B8', fontSize: 18 }} />
@@ -136,12 +136,12 @@ const BloodDirectory = () => {
                     </IconButton>
                   </InputAdornment>
                 )
-              }}
+              } }}
             />
 
             <Divider sx={{ my: 2 }} />
 
-            <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Typography variant="caption" color="textSecondary">
                 Found: <strong>{donors.length} active</strong>
               </Typography>
@@ -153,7 +153,7 @@ const BloodDirectory = () => {
         </Grid>
 
         {/* List of Donors */}
-        <Grid item xs={12} md={9}>
+        <Grid size={{ xs: 12, md: 9 }}>
           {error && (
             <Alert severity="error" sx={{ mb: 3, borderRadius: '10px' }} action={
               <Button color="inherit" size="small" onClick={() => loadDonors()}>Retry</Button>
@@ -165,9 +165,9 @@ const BloodDirectory = () => {
           {loading ? (
             <Grid container spacing={2}>
               {[1, 2, 3, 4].map((item) => (
-                <Grid item xs={12} sm={6} key={item}>
+                <Grid key={item} size={{ xs: 12, sm: 6 }}>
                   <Card sx={{ border: '1px solid #E2E8F0', borderRadius: '12px', p: 2.5, boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-                    <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                       <Skeleton variant="text" width="55%" height={26} />
                       <Skeleton variant="rounded" width={55} height={24} sx={{ borderRadius: '16px' }} />
                     </Box>
@@ -180,9 +180,9 @@ const BloodDirectory = () => {
               ))}
             </Grid>
           ) : donors.length === 0 ? (
-            <Box py={8} textAlign="center" sx={{ border: '1px dashed #CBD5E1', borderRadius: '14px', bgcolor: '#F8FAFC' }}>
+            <Box sx={{ py: 8, textAlign: 'center', border: '1px dashed #CBD5E1', borderRadius: '14px', bgcolor: '#F8FAFC' }}>
               <Bloodtype sx={{ fontSize: 48, color: '#94A3B8', mb: 1 }} />
-              <Typography variant="h6" fontWeight="bold" color="#334155" gutterBottom>
+              <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#334155' }}>
                 No Active Blood Donors Found
               </Typography>
               <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
@@ -199,11 +199,11 @@ const BloodDirectory = () => {
           ) : (
             <Grid container spacing={2}>
               {donors.map(donor => (
-                <Grid item xs={12} sm={6} key={donor._id}>
+                <Grid key={donor._id} size={{ xs: 12, sm: 6 }}>
                   <Card sx={{ border: '1px solid #E2E8F0', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', transition: 'all 0.2s ease', '&:hover': { borderColor: '#0F766E', boxShadow: '0 6px 20px rgba(15, 118, 110, 0.08)' } }}>
                     <CardContent sx={{ p: 2.5 }}>
-                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
-                        <Typography variant="subtitle1" fontWeight="bold" color="#0F172A">
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#0F172A' }}>
                           {donor.user?.name || 'Voluntary Donor'}
                         </Typography>
                         <Chip
@@ -213,10 +213,10 @@ const BloodDirectory = () => {
                           sx={{ fontWeight: 'bold', bgcolor: '#E6F6F3', color: '#0F766E' }}
                         />
                       </Box>
-                      <Typography variant="body2" color="#64748B" sx={{ mb: 1 }}>
+                      <Typography variant="body2" sx={{ color: '#64748B', mb: 1 }}>
                         City / Area: <strong>{donor.cityArea}</strong>
                       </Typography>
-                      <Typography variant="caption" display="block" sx={{ color: '#64748B', mb: 2 }}>
+                      <Typography variant="caption" sx={{ display: 'block', color: '#64748B', mb: 2 }}>
                         Contact Preference: <strong>{donor.contactPreference || 'Phone'}</strong>
                       </Typography>
                       <Divider sx={{ mb: 2 }} />

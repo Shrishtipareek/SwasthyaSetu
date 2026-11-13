@@ -1,7 +1,15 @@
 import axios from 'axios';
 
+// Configurable through frontend/.env (see .env.example); defaults match the backend's dev port.
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || API_BASE_URL.replace(/\/api\/?$/, '');
+
+/** Best human-readable message from an axios error (backend sends { message }). */
+export const getErrorMessage = (error, fallback = 'Something went wrong. Please try again.') =>
+  error?.response?.data?.message || (typeof error === 'string' ? error : null) || error?.message || fallback;
+
 const API = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: API_BASE_URL,
   timeout: 20000,
 });
 
@@ -88,7 +96,8 @@ export const aiAPI = {
 
 export const campaignAPI = {
   create: (campaignData) => API.post('/campaigns', campaignData),
-  getCampaigns: () => API.get('/campaigns'),
+  // Params were silently dropped before, so the Campaigns page type filter never reached the API.
+  getCampaigns: (params, config = {}) => API.get('/campaigns', { params, ...config }),
   register: (id) => API.post(`/campaigns/${id}/register`),
 };
 
@@ -108,6 +117,9 @@ export const bloodDonorAPI = {
   getDonors: (params, config = {}) => API.get('/blood-donors', { params, ...config }),
   getMyProfile: () => API.get('/blood-donors/me'),
   updateMyProfile: (data) => API.put('/blood-donors/me', data),
+  // Aliases used by older callers
+  getMine: () => API.get('/blood-donors/me'),
+  updateMine: (data) => API.put('/blood-donors/me', data),
   remove: () => API.delete('/blood-donors/me'),
 };
 

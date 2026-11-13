@@ -153,7 +153,7 @@ const CareAIChat = ({ onEmergencyClick }) => {
                 <SmartToy />
               </Avatar>
               <Box>
-                <Typography variant="subtitle1" fontWeight="bold">CareAI Assistant</Typography>
+                <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>CareAI Assistant</Typography>
                 <Typography variant="caption" sx={{ opacity: 0.8 }}>Online | Virtual Guide</Typography>
               </Box>
             </Box>
@@ -252,7 +252,6 @@ const CareAIChat = ({ onEmergencyClick }) => {
               variant="outlined"
               size="small"
               fullWidth
-              inputProps={{ maxLength: 500 }}
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value.slice(0, 500))}
               onKeyDown={(e) => {
@@ -266,6 +265,7 @@ const CareAIChat = ({ onEmergencyClick }) => {
                   borderRadius: '24px'
                 }
               }}
+              slotProps={{ htmlInput: { maxLength: 500 } }}
             />
             <IconButton
               color="primary"

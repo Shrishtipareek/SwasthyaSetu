@@ -19,18 +19,29 @@ import {
   Switch,
   MenuItem,
   Select,
-  FormControl
+  FormControl,
+  TextField
 } from '@mui/material';
 import {
   Close as CloseIcon,
   Phone,
   Directions,
   CheckCircle,
-  Warning as WarningIcon
+  Warning as WarningIcon,
+  MonitorHeart,
+  Hotel,
+  AirportShuttle,
+  Bloodtype,
+  Air,
+  MedicalServices,
+  LocalHospital
 } from '@mui/icons-material';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
-import { emergencyAPI } from '../services/api';
+import { emergencyAPI, getErrorMessage } from '../services/api';
+import { useAuth } from '../context/AuthContext';
+
+const DEFAULT_HELPLINES = ['108 (National Ambulance)', '102 (Medical Intake)', '112 (Universal Emergency)'];
 
 // Custom Icon for User's Location (Red Pin)
 const redIcon = new L.Icon({
@@ -43,6 +54,9 @@ const redIcon = new L.Icon({
 });
 
 const EmergencyModal = ({ open, onClose }) => {
+  const { user } = useAuth();
+  const [guestPhone, setGuestPhone] = useState('');
+  const [helplines, setHelplines] = useState(DEFAULT_HELPLINES);
   const [step, setStep] = useState(1); // 1: Select Type, 2: Locating/Loading, 3: Results
   const [selectedType, setSelectedType] = useState('');
   const [_loading, setLoading] = useState(false);
@@ -62,13 +76,13 @@ const EmergencyModal = ({ open, onClose }) => {
   };
 
   const emergencyOptions = [
-    { label: 'ICU Bed', value: 'icu', color: '#dc2626' },
-    { label: 'Emergency Bed', value: 'bed', color: '#dc2626' },
-    { label: 'Ambulance', value: 'ambulance', color: '#ea580c' },
-    { label: 'Blood', value: 'blood', color: '#881337' },
-    { label: 'Oxygen', value: 'oxygen', color: '#0284c7' },
-    { label: 'Emergency Doctor', value: 'doctor', color: '#0d9488' },
-    { label: 'Nearby Hospital', value: 'nearby_hospital', color: '#4f46e5' }
+    { label: 'ICU Bed', value: 'icu', color: '#DC2626', hint: 'Critical care bed', icon: <MonitorHeart /> },
+    { label: 'Emergency Bed', value: 'bed', color: '#DC2626', hint: 'ER admission', icon: <Hotel /> },
+    { label: 'Ambulance', value: 'ambulance', color: '#EA580C', hint: 'Dispatch transport', icon: <AirportShuttle /> },
+    { label: 'Blood', value: 'blood', color: '#9F1239', hint: 'Blood units', icon: <Bloodtype /> },
+    { label: 'Oxygen', value: 'oxygen', color: '#0284C7', hint: 'Oxygen support', icon: <Air /> },
+    { label: 'Emergency Doctor', value: 'doctor', color: '#0F766E', hint: 'On-call doctor', icon: <MedicalServices /> },
+    { label: 'Nearby Hospital', value: 'nearby_hospital', color: '#4F46E5', hint: 'Closest facility', icon: <LocalHospital /> }
   ];
 
   const handleSelectType = async (type) => {
@@ -115,18 +129,22 @@ const EmergencyModal = ({ open, onClose }) => {
 
   const submitEmergency = async (type, loc) => {
     try {
-      const phoneNum = '9876543210'; // default demo patient contact number
+      // Logged-in users are reached on their profile number; guests may type one.
+      // A hard-coded demo number used to be sent for everyone.
+      const contactNumber = guestPhone.trim() || user?.phone || undefined;
       const { data } = await emergencyAPI.initiate({
         requestType: type,
         location: loc,
-        contactNumber: phoneNum,
+        contactNumber,
         details: `Emergency ${type.toUpperCase()} request triggered.`
       });
       setResults(data);
+      if (data?.emergencyHelplines?.length) setHelplines(data.emergencyHelplines);
       setStep(3);
     } catch (err) {
       console.error(err);
-      setErrorMsg('Failed to process emergency request. Please try calling hospitals directly.');
+      if (err.response?.data?.emergencyHelplines?.length) setHelplines(err.response.data.emergencyHelplines);
+      setErrorMsg(getErrorMessage(err, 'Failed to process emergency request. Please try calling hospitals directly.'));
       setStep(3);
     } finally {
       setLoading(false);
@@ -147,17 +165,18 @@ const EmergencyModal = ({ open, onClose }) => {
       onClose={handleClose}
       fullWidth
       maxWidth="lg"
-      PaperProps={{
+      slotProps={{ paper: {
         sx: {
           borderRadius: '16px',
           overflow: 'hidden'
         }
-      }}
+      } }}
     >
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', bgcolor: selectedType === 'blood' ? '#881337' : '#991b1b', color: 'white', p: 2 }}>
-        <Box display="flex" alignItems="center" gap={1}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <WarningIcon />
-          <Typography variant="h6" fontWeight="bold">EMERGENCY ASSISTANCE</Typography>
+          {/* color: inherit, otherwise the theme's dark h6 colour sits on the red header */}
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'inherit', letterSpacing: '0.02em' }}>EMERGENCY ASSISTANCE</Typography>
         </Box>
         <IconButton color="inherit" onClick={handleClose}>
           <CloseIcon />
@@ -166,13 +185,25 @@ const EmergencyModal = ({ open, onClose }) => {
 
       <DialogContent sx={{ p: { xs: 2, md: 4 }, bgcolor: '#fafafa' }}>
         {step === 1 && (
-          <Box py={2} textAlign="center">
-            <Typography variant="h5" fontWeight="bold" gutterBottom color="#1e293b">
+          <Box sx={{ py: 2, textAlign: 'center' }}>
+            <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold', color: '#1e293b' }}>
               WHAT DO YOU NEED?
             </Typography>
             <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
               Select your required emergency resource to find nearby hospitals with live available stock.
             </Typography>
+
+            {!user && (
+              <TextField
+                label="Your phone number"
+                helperText="Optional, so the hospital can call you back"
+                type="tel"
+                size="small"
+                value={guestPhone}
+                onChange={(e) => setGuestPhone(e.target.value)}
+                sx={{ mb: 3, width: '100%', maxWidth: 420 }}
+              />
+            )}
 
             <Box sx={{ mb: 3, p: 2, bgcolor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
               <FormControlLabel
@@ -183,7 +214,7 @@ const EmergencyModal = ({ open, onClose }) => {
                     color="primary"
                   />
                 }
-                label={<Typography variant="body2" fontWeight="600">Manual Location Selector</Typography>}
+                label={<Typography variant="body2" sx={{ fontWeight: '600' }}>Manual Location Selector</Typography>}
               />
 
               {useManualLocation && (
@@ -201,28 +232,36 @@ const EmergencyModal = ({ open, onClose }) => {
               )}
             </Box>
 
-            <Grid container spacing={2} justifyContent="center">
+            <Grid container spacing={2} sx={{ justifyContent: 'center' }}>
               {emergencyOptions.map((opt) => (
-                <Grid item xs={6} sm={4} key={opt.value}>
+                <Grid key={opt.value} size={{ xs: 6, sm: 4, md: 3 }}>
                   <Button
-                    variant="contained"
                     fullWidth
                     onClick={() => handleSelectType(opt.value)}
                     sx={{
-                      py: 3,
-                      bgcolor: opt.color,
-                      fontSize: '1rem',
-                      fontWeight: 'bold',
-                      borderRadius: '12px',
-                      boxShadow: `0 4px 12px ${opt.color}44`,
+                      height: '100%',
+                      py: 2.25,
+                      px: 1.5,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 1,
+                      borderRadius: '14px',
+                      bgcolor: '#FFFFFF',
+                      color: '#0F172A',
+                      border: '1px solid #E2E8F0',
+                      boxShadow: '0 1px 2px rgba(15, 23, 42, 0.05)',
                       '&:hover': {
-                        bgcolor: opt.color,
-                        filter: 'brightness(0.9)',
-                        boxShadow: `0 6px 16px ${opt.color}66`,
+                        bgcolor: `${opt.color}0D`,
+                        borderColor: opt.color,
+                        boxShadow: `0 6px 18px ${opt.color}26`,
                       }
                     }}
                   >
-                    {opt.label}
+                    <Box sx={{ width: 48, height: 48, borderRadius: '12px', bgcolor: `${opt.color}14`, color: opt.color, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {opt.icon}
+                    </Box>
+                    <Typography sx={{ fontWeight: 700, fontSize: '0.98rem', lineHeight: 1.2 }}>{opt.label}</Typography>
+                    <Typography variant="caption" sx={{ color: '#64748B', lineHeight: 1.3 }}>{opt.hint}</Typography>
                   </Button>
                 </Grid>
               ))}
@@ -231,9 +270,9 @@ const EmergencyModal = ({ open, onClose }) => {
         )}
 
         {step === 2 && (
-          <Box py={8} display="flex" flexDirection="column" alignItems="center" justifyContent="center">
+          <Box sx={{ py: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
             <CircularProgress color="error" size={50} sx={{ mb: 3 }} />
-            <Typography variant="h6" fontWeight="bold" color="#334155">
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#334155' }}>
               Locating nearest verified hospitals...
             </Typography>
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
@@ -245,15 +284,25 @@ const EmergencyModal = ({ open, onClose }) => {
         {step === 3 && (
           <Box>
             {errorMsg ? (
-              <Alert severity="error" sx={{ mb: 3 }}>{errorMsg}</Alert>
+              <Alert severity="error" sx={{ mb: 3 }}>
+                {errorMsg}
+                <Box sx={{ mt: 1 }}>Emergency helplines: <strong>{helplines.join(' · ')}</strong></Box>
+              </Alert>
             ) : (
               <Grid container spacing={3}>
                 {/* Hospital List Panel */}
-                <Grid item xs={12} md={5}>
-                  <Alert severity="success" icon={<CheckCircle />} sx={{ mb: 2 }}>
-                    Your emergency request has been logged and assigned to <strong>{results?.emergencyRequest?.hospital ? 'the nearest available hospital' : 'nearest facility'}</strong>.
-                  </Alert>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom color="#1e293b">
+                <Grid size={{ xs: 12, md: 5 }}>
+                  {results?.emergencyRequest ? (
+                    <Alert severity="success" icon={<CheckCircle />} sx={{ mb: 2 }}>
+                      Your emergency request has been logged and sent to <strong>{results.recommendedHospitals?.[0]?.name || 'the nearest available hospital'}</strong>.
+                    </Alert>
+                  ) : (
+                    <Alert severity="warning" sx={{ mb: 2 }}>
+                      {results?.message || 'Your request could not be logged. Please call one of these hospitals directly.'}
+                      <Box sx={{ mt: 1 }}>Emergency helplines: <strong>{helplines.join(' · ')}</strong></Box>
+                    </Alert>
+                  )}
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#1e293b' }}>
                     Recommended Hospitals
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
@@ -264,7 +313,7 @@ const EmergencyModal = ({ open, onClose }) => {
                     </Alert>
                   )}
                   
-                  <Box display="flex" flexDirection="column" gap={2} sx={{ maxHeight: '420px', overflowY: 'auto', pr: 1 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: '420px', overflowY: 'auto', pr: 1 }}>
                     {results?.recommendedHospitals?.map((rh, index) => (
                       <Card
                         key={rh._id}
@@ -278,22 +327,22 @@ const EmergencyModal = ({ open, onClose }) => {
                         <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <Box>
-                              <Typography variant="subtitle1" fontWeight="bold" color="#0f172a">
+                              <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: '#0f172a' }}>
                                 {rh.name} {index === 0 && <Chip label="BEST CHOICE" color="success" size="small" sx={{ ml: 1, height: 20 }} />}
                               </Typography>
                               <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
                                 {rh.address}
                               </Typography>
                               <Typography variant="body2" sx={{ color: '#0f172a', fontWeight: 500 }}>
-                                Distance: <strong>{rh.distance.toFixed(1)} km</strong> | Travel Time: <strong>{rh.travelTime}</strong>
+                                Distance: <strong>{typeof rh.distance === 'number' ? `${rh.distance.toFixed(1)} km` : '—'}</strong> | Travel Time: <strong>{rh.travelTime || '—'}</strong>
                               </Typography>
-                              <Typography variant="caption" display="block" sx={{ color: '#64748b', mt: 0.5 }}>
+                              <Typography variant="caption" sx={{ display: 'block', color: '#64748b', mt: 0.5 }}>
                                 ICU Beds: {rh.icuAvailable} | Emergency Beds: {rh.emergencyAvailable}
                               </Typography>
                             </Box>
                           </Box>
                           
-                          <Box display="flex" gap={1} mt={2}>
+                          <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
                             <Button
                               variant="contained"
                               color="primary"
@@ -322,7 +371,7 @@ const EmergencyModal = ({ open, onClose }) => {
                 </Grid>
 
                 {/* Map Display Panel */}
-                <Grid item xs={12} md={7}>
+                <Grid size={{ xs: 12, md: 7 }}>
                   <Paper elevation={0} sx={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', height: '480px' }}>
                     <MapContainer
                       center={[userLocation.lat, userLocation.lng]}

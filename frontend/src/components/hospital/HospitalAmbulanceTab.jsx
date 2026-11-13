@@ -9,9 +9,9 @@ const HospitalAmbulanceTab = ({
 }) => {
   return (
     <Grid container spacing={4}>
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '12px', bgcolor: '#ffffff' }}>
-          <Typography variant="h6" fontWeight="bold" color="#0F172A" mb={2}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#0F172A', mb: 2 }}>
             Register Fleet Ambulance
           </Typography>
           <form onSubmit={handleRegisterAmbulance}>

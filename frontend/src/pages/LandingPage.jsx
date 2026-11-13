@@ -78,13 +78,12 @@ const LandingPage = ({ onEmergencyClick: _onEmergencyClick }) => {
         <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
           <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, px: 2, py: 0.8, borderRadius: '20px', bgcolor: 'rgba(255, 255, 255, 0.15)', backdropFilter: 'blur(4px)', border: '1px solid rgba(255, 255, 255, 0.25)', mb: 3 }}>
             <VerifiedUser sx={{ fontSize: 18, color: '#5EEAD4' }} />
-            <Typography variant="caption" fontWeight="bold" color="#FFFFFF">Centralized Healthcare Coordination Platform</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#FFFFFF' }}>Centralized Healthcare Coordination Platform</Typography>
           </Box>
 
           <Typography
             variant="h2"
-            fontWeight="800"
-            sx={{ fontSize: { xs: '2.5rem', md: '3.5rem' }, mb: 2, lineHeight: 1.2, color: '#FFFFFF', letterSpacing: '-0.02em', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}
+            sx={{ fontWeight: '800', fontSize: { xs: '2.5rem', md: '3.5rem' }, mb: 2, lineHeight: 1.2, color: '#FFFFFF', letterSpacing: '-0.02em', textShadow: '0 2px 10px rgba(0,0,0,0.3)' }}
           >
             Healthcare Help, <span style={{ color: '#5EEAD4' }}>When You Need It Most.</span>
           </Typography>
@@ -162,10 +161,10 @@ const LandingPage = ({ onEmergencyClick: _onEmergencyClick }) => {
                 <SmartToy sx={{ fontSize: 38 }} />
               </Box>
               <Box>
-                <Typography variant="h5" fontWeight="800" color="#0F2C59" mb={0.5}>
+                <Typography variant="h5" sx={{ fontWeight: '800', color: '#0F2C59', mb: 0.5 }}>
                   CareAI Symptom Checker
                 </Typography>
-                <Typography variant="body2" color="#64748B" sx={{ maxWidth: '580px', lineHeight: 1.6 }}>
+                <Typography variant="body2" sx={{ color: '#64748B', maxWidth: '580px', lineHeight: 1.6 }}>
                   Analyze symptoms instantly 24/7 with artificial intelligence. Detect emergency warning signs, get triage risk advice, and match doctors.
                 </Typography>
               </Box>
@@ -199,56 +198,20 @@ const LandingPage = ({ onEmergencyClick: _onEmergencyClick }) => {
       </Box>
 
       {/* Features Grid */}
-      <Box
-        sx={{
-          py: 10,
-          position: 'relative',
-          overflow: 'hidden'
-        }}
-      >
-        {/* Visible Blurred Background Image */}
-        <Box
-          component="img"
-          src="/medicine_bg.jpg"
-          alt="Healthcare Network"
-          loading="lazy"
-          decoding="async"
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            objectPosition: 'center',
-            filter: 'blur(12px)',
-            transform: 'scale(1.08)',
-            zIndex: 0,
-            pointerEvents: 'none'
-          }}
-        />
-
-        {/* Light Translucent Frosted Overlay */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(240, 253, 250, 0.30) 50%, rgba(241, 245, 249, 0.35) 100%)',
-            zIndex: 1
-          }}
-        />
-
-        <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 2 }}>
-          <Typography variant="h4" textAlign="center" fontWeight="800" mb={1} color="#1E293B">
+      {/* Clean light section: the old blurred photo with a faint overlay made the
+          heading and subtitle almost unreadable (dark text on a dark image). */}
+      <Box sx={{ py: { xs: 7, md: 10 }, bgcolor: '#F7FAFA', borderTop: '1px solid #E2E8F0' }}>
+        <Container maxWidth="lg">
+          <Typography variant="overline" sx={{ display: 'block', textAlign: 'center', color: '#0F766E', fontWeight: 700, letterSpacing: '0.12em' }}>
+            Platform Capabilities
+          </Typography>
+          <Typography variant="h4" sx={{ textAlign: 'center', fontWeight: '800', mb: 1, color: '#0F172A', fontSize: { xs: '1.7rem', md: '2.125rem' } }}>
             Our Emergency Network & Coordination Tools
           </Typography>
-          <Typography variant="body1" textAlign="center" color="#475569" mb={6} fontWeight="500">
+          <Typography variant="body1" sx={{ textAlign: 'center', color: '#475569', mb: { xs: 4, md: 6 }, fontWeight: '500' }}>
             Designed to save crucial minutes during healthcare crises.
           </Typography>
-          <Grid container spacing={4}>
+          <Grid container spacing={3}>
             {[
               { title: 'Emergency Finder', desc: 'Real-time GPS routing to nearby verified hospitals containing available ICU beds and emergency departments.', icon: <WarningIcon sx={{ fontSize: 36, color: '#dc2626' }} /> },
               { title: 'Hospital-to-Hospital Sharing', desc: 'Central resource requests that allow clinical administrators to request blood units, ICU beds, and ventilators from nearby network hospitals.', icon: <Share sx={{ fontSize: 36, color: '#0f766e' }} /> },
@@ -257,29 +220,26 @@ const LandingPage = ({ onEmergencyClick: _onEmergencyClick }) => {
               { title: 'Ambulance Systems', desc: 'Coordinate and check live ambulance driver directories to request transport dispatch directly to your coordinates.', icon: <Speed sx={{ fontSize: 36, color: '#0f766e' }} /> },
               { title: 'Verified Hospital Security', desc: 'Platform safeguards. Every hospital registration undergoes strict license verification before becoming visible.', icon: <VerifiedUser sx={{ fontSize: 36, color: '#0f766e' }} /> },
             ].map((f, idx) => (
-              <Grid item xs={12} sm={6} md={4} key={idx}>
+              <Grid key={idx} size={{ xs: 12, sm: 6, md: 4 }}>
                 <Card
                   sx={{
                     height: '100%',
                     borderRadius: '16px',
-                    bgcolor: 'rgba(255, 255, 255, 0.70)',
-                    backdropFilter: 'blur(16px)',
-                    WebkitBackdropFilter: 'blur(16px)',
-                    border: '1px solid rgba(255, 255, 255, 0.85)',
-                    boxShadow: '0 8px 32px rgba(15, 23, 42, 0.08)',
-                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                    bgcolor: '#FFFFFF',
+                    border: '1px solid #E2E8F0',
+                    boxShadow: '0 1px 3px rgba(15, 23, 42, 0.06)',
+                    transition: 'all 0.25s ease',
                     '&:hover': {
-                      transform: 'translateY(-6px)',
-                      borderColor: '#0f766e',
-                      boxShadow: '0 14px 36px rgba(15, 118, 110, 0.2)',
-                      bgcolor: 'rgba(255, 255, 255, 0.88)'
+                      transform: 'translateY(-4px)',
+                      borderColor: '#99F6E4',
+                      boxShadow: '0 12px 28px rgba(15, 118, 110, 0.12)'
                     }
                   }}
                 >
                   <CardContent sx={{ p: 3.5 }}>
-                    <Box sx={{ p: 1.5, bgcolor: 'rgba(15, 118, 110, 0.1)', border: '1px solid rgba(15, 118, 110, 0.25)', width: 'fit-content', borderRadius: '12px', mb: 2.5 }}>{f.icon}</Box>
-                    <Typography variant="h6" fontWeight="700" gutterBottom color="#334155">{f.title}</Typography>
-                    <Typography variant="body2" color="#64748B" sx={{ lineHeight: 1.6 }}>{f.desc}</Typography>
+                    <Box sx={{ p: 1.5, bgcolor: idx === 0 ? '#FEF2F2' : '#F0FDFA', width: 'fit-content', borderRadius: '12px', mb: 2.5, display: 'flex' }}>{f.icon}</Box>
+                    <Typography variant="h6" gutterBottom sx={{ fontWeight: '700', color: '#0F172A' }}>{f.title}</Typography>
+                    <Typography variant="body2" sx={{ color: '#475569', lineHeight: 1.7 }}>{f.desc}</Typography>
                   </CardContent>
                 </Card>
               </Grid>
@@ -291,7 +251,7 @@ const LandingPage = ({ onEmergencyClick: _onEmergencyClick }) => {
       {/* FAQ Accordion */}
       <Box sx={{ py: 10, bgcolor: '#ffffff' }}>
         <Container maxWidth="md">
-          <Typography variant="h4" textAlign="center" fontWeight="bold" mb={4} color="#0f172a">
+          <Typography variant="h4" sx={{ textAlign: 'center', fontWeight: 'bold', mb: 4, color: '#0f172a' }}>
             Frequently Asked Questions
           </Typography>
           {[
@@ -302,7 +262,7 @@ const LandingPage = ({ onEmergencyClick: _onEmergencyClick }) => {
           ].map((faq, idx) => (
             <Accordion key={idx} sx={{ boxShadow: 'none', borderBottom: '1px solid #e2e8f0', '&:before': { display: 'none' } }}>
               <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography fontWeight="bold" color="#1e293b">{faq.q}</Typography>
+                <Typography sx={{ fontWeight: 'bold', color: '#1e293b' }}>{faq.q}</Typography>
               </AccordionSummary>
               <AccordionDetails>
                 <Typography color="textSecondary" sx={{ lineHeight: 1.6 }}>{faq.a}</Typography>

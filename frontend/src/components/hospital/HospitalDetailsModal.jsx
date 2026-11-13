@@ -62,10 +62,10 @@ const HospitalDetailsModal = ({ open, onClose, hospital, userCoords, onBookDocto
   const catColors = getCategoryColor(hospital.category);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px', p: 1 } }}>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth slotProps={{ paper: { sx: { borderRadius: '16px', p: 1 } } }}>
       <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', pb: 1 }}>
         <Box sx={{ pr: 2 }}>
-          <Box display="flex" alignItems="center" gap={1} mb={0.5} flexWrap="wrap">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
             <Chip
               label={hospital.category || 'Healthcare Facility'}
               size="small"
@@ -88,7 +88,7 @@ const HospitalDetailsModal = ({ open, onClose, hospital, userCoords, onBookDocto
               />
             )}
           </Box>
-          <Typography variant="h5" fontWeight="800" color="#0F172A">
+          <Typography variant="h5" sx={{ fontWeight: '800', color: '#0F172A' }}>
             {hospital.name}
           </Typography>
         </Box>
@@ -100,14 +100,14 @@ const HospitalDetailsModal = ({ open, onClose, hospital, userCoords, onBookDocto
       <DialogContent sx={{ pt: 1 }}>
         {/* Address & Coordinates */}
         <Box sx={{ bgcolor: '#F8FAFC', p: 2, borderRadius: '12px', border: '1px solid #E2E8F0', mb: 2.5 }}>
-          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-            <Box display="flex" gap={1.2} alignItems="flex-start" sx={{ flex: 1, pr: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <Box sx={{ display: 'flex', gap: 1.2, alignItems: 'flex-start', flex: 1, pr: 1 }}>
               <LocationOn sx={{ color: '#0F766E', mt: 0.2, fontSize: 20 }} />
               <Box>
-                <Typography variant="caption" fontWeight="bold" color="#64748B" textTransform="uppercase">
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#64748B', textTransform: 'uppercase' }}>
                   Address
                 </Typography>
-                <Typography variant="body2" color="#0F172A" sx={{ mt: 0.2, lineHeight: 1.5 }}>
+                <Typography variant="body2" sx={{ color: '#0F172A', mt: 0.2, lineHeight: 1.5 }}>
                   {hospital.address || 'Address details not listed in OpenStreetMap'}
                 </Typography>
               </Box>
@@ -123,14 +123,14 @@ const HospitalDetailsModal = ({ open, onClose, hospital, userCoords, onBookDocto
 
           <Divider sx={{ my: 1.5 }} />
 
-          <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
-            <Typography variant="caption" color="#64748B">
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+            <Typography variant="caption" sx={{ color: '#64748B' }}>
               GPS: <strong>{hospital.lat?.toFixed(5)}, {hospital.lng?.toFixed(5)}</strong>
             </Typography>
             {hospital.openingHours && (
-              <Box display="flex" alignItems="center" gap={0.5}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <AccessTime sx={{ fontSize: 15, color: '#64748B' }} />
-                <Typography variant="caption" color="#64748B">
+                <Typography variant="caption" sx={{ color: '#64748B' }}>
                   Hours: <strong>{hospital.openingHours}</strong>
                 </Typography>
               </Box>
@@ -141,11 +141,11 @@ const HospitalDetailsModal = ({ open, onClose, hospital, userCoords, onBookDocto
         {/* Contact Information Grid */}
         <Grid container spacing={2} sx={{ mb: 2.5 }}>
           {/* Phone */}
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Box sx={{ p: 2, border: '1px solid #E2E8F0', borderRadius: '12px', height: '100%' }}>
-              <Box display="flex" alignItems="center" gap={1} mb={1}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <Phone sx={{ color: hospital.phone ? '#0F766E' : '#94A3B8', fontSize: 18 }} />
-                <Typography variant="caption" fontWeight="bold" color="#64748B" textTransform="uppercase">
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#64748B', textTransform: 'uppercase' }}>
                   Contact Phone
                 </Typography>
               </Box>
@@ -161,7 +161,7 @@ const HospitalDetailsModal = ({ open, onClose, hospital, userCoords, onBookDocto
                   {hospital.phone}
                 </Button>
               ) : (
-                <Typography variant="body2" color="#94A3B8" fontStyle="italic">
+                <Typography variant="body2" sx={{ color: '#94A3B8', fontStyle: 'italic' }}>
                   Not listed in OSM
                 </Typography>
               )}
@@ -169,11 +169,11 @@ const HospitalDetailsModal = ({ open, onClose, hospital, userCoords, onBookDocto
           </Grid>
 
           {/* Website */}
-          <Grid item xs={12} sm={6}>
+          <Grid size={{ xs: 12, sm: 6 }}>
             <Box sx={{ p: 2, border: '1px solid #E2E8F0', borderRadius: '12px', height: '100%' }}>
-              <Box display="flex" alignItems="center" gap={1} mb={1}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                 <Language sx={{ color: hospital.website ? '#0F766E' : '#94A3B8', fontSize: 18 }} />
-                <Typography variant="caption" fontWeight="bold" color="#64748B" textTransform="uppercase">
+                <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#64748B', textTransform: 'uppercase' }}>
                   Official Website
                 </Typography>
               </Box>
@@ -191,7 +191,7 @@ const HospitalDetailsModal = ({ open, onClose, hospital, userCoords, onBookDocto
                   Visit Website
                 </Button>
               ) : (
-                <Typography variant="body2" color="#94A3B8" fontStyle="italic">
+                <Typography variant="body2" sx={{ color: '#94A3B8', fontStyle: 'italic' }}>
                   Not listed in OSM
                 </Typography>
               )}
@@ -202,7 +202,7 @@ const HospitalDetailsModal = ({ open, onClose, hospital, userCoords, onBookDocto
         {/* SwasthyaSetu Network Live Bed Status if registered */}
         {hospital.isRegisteredNetwork && hospital.beds && (
           <Alert severity="success" icon={<LocalHospital />} sx={{ mb: 2.5, borderRadius: '10px' }}>
-            <Typography variant="subtitle2" fontWeight="bold">
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>
               Verified SwasthyaSetu Network Hospital
             </Typography>
             <Typography variant="body2">
@@ -212,7 +212,7 @@ const HospitalDetailsModal = ({ open, onClose, hospital, userCoords, onBookDocto
         )}
 
         {/* Source attribution notice */}
-        <Typography variant="caption" display="block" color="#94A3B8" textAlign="center">
+        <Typography variant="caption" sx={{ display: 'block', color: '#94A3B8', textAlign: 'center' }}>
           Healthcare data queried live from OpenStreetMap contributors & Overpass API.
         </Typography>
       </DialogContent>

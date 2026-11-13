@@ -84,15 +84,15 @@ const Login = () => {
             <Box sx={{ p: 1, borderRadius: '10px', bgcolor: 'rgba(220, 38, 38, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1.5 }}>
               <LocalHospital sx={{ color: '#DC2626', fontSize: 30 }} />
             </Box>
-            <Typography variant="h5" fontWeight="900" sx={{ letterSpacing: '-0.03em', color: '#0F2C59' }}>
+            <Typography variant="h5" sx={{ fontWeight: '900', letterSpacing: '-0.03em', color: '#0F2C59' }}>
               Swasthya<span style={{ color: '#0F766E' }}>Setu</span>
             </Typography>
           </Box>
 
-          <Typography variant="h3" fontWeight="800" color="#0F2C59" sx={{ fontSize: { xs: '2rem', sm: '2.4rem' }, mb: 1, fontFamily: 'serif, Inter, sans-serif' }}>
+          <Typography variant="h3" sx={{ fontWeight: '800', color: '#0F172A', fontSize: { xs: '2rem', sm: '2.4rem' }, letterSpacing: '-0.02em', mb: 1 }}>
             Welcome Back
           </Typography>
-          <Typography variant="body1" color="#64748B" sx={{ mb: 4, fontSize: '0.98rem' }}>
+          <Typography variant="body1" sx={{ color: '#64748B', mb: 4, fontSize: '0.98rem' }}>
             Login to your SwasthyaSetu dashboard
           </Typography>
 
@@ -100,7 +100,7 @@ const Login = () => {
 
           <form onSubmit={handleSubmit}>
             <Box sx={{ mb: 2.5 }}>
-              <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.8}>
+              <Typography variant="subtitle2" sx={{ fontWeight: '600', color: '#334155', mb: 0.8 }}>
                 Email Address *
               </Typography>
               <TextField
@@ -130,7 +130,7 @@ const Login = () => {
             </Box>
 
             <Box sx={{ mb: 3.5 }}>
-              <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.8}>
+              <Typography variant="subtitle2" sx={{ fontWeight: '600', color: '#334155', mb: 0.8 }}>
                 Password *
               </Typography>
               <TextField
@@ -191,7 +191,7 @@ const Login = () => {
           </form>
 
           <Box sx={{ textAlign: 'center', mt: 4 }}>
-            <Typography variant="body2" color="#64748B">
+            <Typography variant="body2" sx={{ color: '#64748B' }}>
               Don't have an account?{' '}
               <Link component={RouterLink} to="/register" fontWeight="700" sx={{ color: '#0F766E', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
                 Register Here
@@ -267,15 +267,15 @@ const Login = () => {
             <Box sx={{ p: 2, borderRadius: '20px', bgcolor: 'rgba(220, 38, 38, 0.08)', mb: 2, border: '1px solid rgba(220, 38, 38, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <LocalHospital sx={{ color: '#DC2626', fontSize: 64 }} />
             </Box>
-            <Typography variant="h4" fontWeight="900" sx={{ letterSpacing: '-0.03em', color: '#0F2C59' }}>
+            <Typography variant="h4" sx={{ fontWeight: '900', letterSpacing: '-0.03em', color: '#0F2C59' }}>
               Swasthya<span style={{ color: '#0F766E' }}>Setu</span>
             </Typography>
           </Box>
 
-          <Typography variant="h4" fontWeight="800" color="#0F2C59" sx={{ mb: 2, fontFamily: 'serif, Inter, sans-serif' }}>
+          <Typography variant="h4" sx={{ fontWeight: '800', color: '#0F172A', letterSpacing: '-0.02em', mb: 2 }}>
             Your Health, Connected
           </Typography>
-          <Typography variant="body1" color="#475569" sx={{ lineHeight: 1.7, fontSize: '1.02rem', fontWeight: '400' }}>
+          <Typography variant="body1" sx={{ color: '#475569', lineHeight: 1.7, fontSize: '1.02rem', fontWeight: '400' }}>
             A trusted platform connecting patients, hospitals, blood donors, and essential healthcare resources.
           </Typography>
         </Box>

@@ -66,6 +66,13 @@ const theme = createTheme({
     borderRadius: 10,
   },
   components: {
+    // Tab bars scroll (swipe / trackpad) instead of being cut off on small screens.
+    MuiTabs: {
+      defaultProps: {
+        variant: 'scrollable',
+        scrollButtons: false,
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {

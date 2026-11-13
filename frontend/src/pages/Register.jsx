@@ -149,12 +149,12 @@ const Register = () => {
             <Box sx={{ p: 1, borderRadius: '10px', bgcolor: 'rgba(220, 38, 38, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1.5 }}>
               <LocalHospital sx={{ color: '#DC2626', fontSize: 28 }} />
             </Box>
-            <Typography variant="h5" fontWeight="900" sx={{ letterSpacing: '-0.02em', color: '#0F172A' }}>
+            <Typography variant="h5" sx={{ fontWeight: '900', letterSpacing: '-0.02em', color: '#0F172A' }}>
               Swasthya<span style={{ color: '#0F766E' }}>Setu</span>
             </Typography>
           </Box>
 
-          <Typography variant="h4" fontWeight="800" sx={{ color: '#0F172A', mb: 1, letterSpacing: '-0.02em', fontSize: { xs: '1.6rem', sm: '2rem' } }}>
+          <Typography variant="h4" sx={{ fontWeight: '800', color: '#0F172A', mb: 1, letterSpacing: '-0.02em', fontSize: { xs: '1.6rem', sm: '2rem' } }}>
             Create an Account
           </Typography>
           <Typography variant="body2" sx={{ color: '#64748B', mb: 3 }}>
@@ -260,7 +260,7 @@ const Register = () => {
         }}
       >
         <Box sx={{ position: 'relative', zIndex: 1, my: 'auto' }}>
-          <Typography variant="h3" fontWeight="900" sx={{ mb: 2, lineHeight: 1.2 }}>
+          <Typography variant="h3" sx={{ fontWeight: '900', mb: 2, lineHeight: 1.2 }}>
             Connected Care When Seconds Count.
           </Typography>
           <Typography variant="body1" sx={{ color: '#CCFBF1', lineHeight: 1.6, fontSize: '1.05rem', maxWidth: '420px' }}>

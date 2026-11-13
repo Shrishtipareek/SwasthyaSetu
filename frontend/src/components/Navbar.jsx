@@ -39,7 +39,8 @@ const Navbar = ({ onEmergencyClick }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  // Derived from the list so the badge can never drift out of sync with it.
+  const unreadCount = notifications.filter(n => !n.read).length;
   const [anchorElNotif, setAnchorElNotif] = useState(null);
   const [anchorElUser, setAnchorElUser] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -49,10 +50,12 @@ const Navbar = ({ onEmergencyClick }) => {
       try {
         const { data } = await notificationAPI.getNotifications();
         setNotifications(data);
-        setUnreadCount(data.filter(n => !n.read).length);
       } catch (err) {
         console.error('Error fetching notifications:', err.message);
       }
+    } else {
+      // Logged out: do not keep showing the previous account's notifications.
+      setNotifications([]);
     }
   }, [user]);
 
@@ -63,29 +66,30 @@ const Navbar = ({ onEmergencyClick }) => {
   useEffect(() => {
     if (socket && user) {
       const handleNewNotification = (notif) => {
-        setNotifications(prev => [notif, ...prev]);
-        setUnreadCount(c => c + 1);
+        setNotifications(prev => (notif?._id && prev.some(n => n._id === notif._id) ? prev : [notif, ...prev]));
       };
 
       socket.on('notification_received', handleNewNotification);
-      socket.on('emergency_alert_received', () => {
-        fetchNotifications();
-      });
+      socket.on('emergency_alert_received', fetchNotifications);
 
+      // Pass the handlers: socket.off(event) alone would also remove listeners
+      // that other components (e.g. the hospital dashboard) registered.
       return () => {
         socket.off('notification_received', handleNewNotification);
-        socket.off('emergency_alert_received');
+        socket.off('emergency_alert_received', fetchNotifications);
       };
     }
   }, [socket, user, fetchNotifications]);
 
   const handleMarkRead = async (id) => {
+    // Clicking an already-read notification used to decrement the unread badge too.
+    const target = notifications.find(n => n._id === id);
+    if (!target || target.read) return;
     try {
       await notificationAPI.markAsRead(id);
       setNotifications(prev =>
         prev.map(n => (n._id === id ? { ...n, read: true } : n))
       );
-      setUnreadCount(c => Math.max(0, c - 1));
     } catch (err) {
       console.error(err.message);
     }
@@ -97,12 +101,13 @@ const Navbar = ({ onEmergencyClick }) => {
     navigate('/');
   };
 
+  const isAdmin = ['admin', 'superadmin'].includes(user?.role);
   const menuItems = [
-    { label: 'Public Dashboard', path: '/public-dashboard', roles: ['guest', 'patient', 'hospital', 'admin'] },
+    { label: 'Public Dashboard', path: '/public-dashboard', roles: ['guest', 'patient', 'hospital', 'admin', 'superadmin'] },
     { label: 'Find Hospital', path: '/search-hospitals', roles: ['guest', 'patient'] },
     { label: 'Blood Directory', path: '/blood-donors', roles: ['guest', 'patient'] },
-    { label: 'Health Campaigns', path: '/campaigns', roles: ['guest', 'patient', 'hospital'] },
-    { label: 'Dashboard', path: user?.role === 'hospital' ? '/hospital-dashboard' : user?.role === 'admin' ? '/admin-dashboard' : '/dashboard', roles: ['patient', 'hospital', 'admin'] },
+    { label: 'Health Campaigns', path: '/campaigns', roles: ['guest', 'patient', 'hospital', 'admin', 'superadmin'] },
+    { label: 'Dashboard', path: user?.role === 'hospital' ? '/hospital-dashboard' : isAdmin ? '/admin-dashboard' : '/dashboard', roles: ['patient', 'hospital', 'admin', 'superadmin'] },
     { label: 'H2H Network', path: '/resource-network', roles: ['hospital'] },
   ];
 
@@ -114,10 +119,10 @@ const Navbar = ({ onEmergencyClick }) => {
   return (
     <>
       <AppBar position="sticky" sx={{ background: '#ffffff', color: '#0F172A', borderBottom: '1px solid #E2E8F0', boxShadow: '0 2px 12px rgba(15, 118, 110, 0.04)' }}>
-        <Toolbar sx={{ justifyContent: 'space-between', py: 0.5 }}>
-          <Box component={RouterLink} to="/" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit' }}>
-            <LocalHospital sx={{ color: '#DC2626', mr: 1, fontSize: { xs: 28, sm: 34 } }} />
-            <Typography variant="h5" fontWeight="900" sx={{ fontSize: { xs: '1.4rem', sm: '1.75rem' }, letterSpacing: '-0.03em', color: '#0F172A' }}>
+        <Toolbar sx={{ justifyContent: 'space-between', py: 0.5, px: { xs: 1.5, sm: 2, md: 3 }, gap: 1 }}>
+          <Box component={RouterLink} to="/" aria-label="SwasthyaSetu home" sx={{ display: 'flex', alignItems: 'center', textDecoration: 'none', color: 'inherit', minWidth: 0 }}>
+            <LocalHospital sx={{ color: '#DC2626', mr: { xs: 0.75, sm: 1 }, fontSize: { xs: 26, sm: 32 } }} />
+            <Typography variant="h5" noWrap sx={{ fontWeight: '900', fontSize: { xs: '1.2rem', sm: '1.5rem', md: '1.6rem' }, letterSpacing: '-0.03em', color: '#0F172A' }}>
               Swasthya<span style={{ color: '#0F766E' }}>Setu</span>
             </Typography>
           </Box>
@@ -188,23 +193,26 @@ const Navbar = ({ onEmergencyClick }) => {
               )}
             </Box>
           ) : (
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+              {/* Compact SOS button: the full "EMERGENCY" label collided with the logo on phones */}
               <Button
                 variant="contained"
                 color="error"
                 onClick={onEmergencyClick}
-                sx={{ mr: 1, py: 0.5, px: 2, fontSize: '0.85rem', fontWeight: 'bold' }}
+                aria-label="Emergency"
+                startIcon={<WarningIcon sx={{ fontSize: '18px !important' }} />}
+                sx={{ py: 0.5, px: 1.25, minWidth: 0, fontSize: '0.8rem', fontWeight: 'bold', borderRadius: '8px', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)' }}
               >
-                EMERGENCY
+                SOS
               </Button>
               {user && (
-                <IconButton onClick={(e) => setAnchorElNotif(e.currentTarget)}>
+                <IconButton aria-label="Notifications" onClick={(e) => setAnchorElNotif(e.currentTarget)}>
                   <Badge badgeContent={unreadCount} color="error">
                     <NotificationsIcon sx={{ color: '#64748b' }} />
                   </Badge>
                 </IconButton>
               )}
-              <IconButton onClick={() => setDrawerOpen(true)} sx={{ ml: 1 }}>
+              <IconButton aria-label="Open menu" onClick={() => setDrawerOpen(true)}>
                 <MenuIcon />
               </IconButton>
             </Box>
@@ -215,7 +223,7 @@ const Navbar = ({ onEmergencyClick }) => {
       {/* Mobile Drawer Menu */}
       <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Box sx={{ width: 250, p: 2 }}>
-          <Typography variant="h6" fontWeight="bold" color="#0F766E" mb={2}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#0F766E', mb: 2 }}>
             SwasthyaSetu Menu
           </Typography>
           <Divider />
@@ -238,17 +246,17 @@ const Navbar = ({ onEmergencyClick }) => {
                 >
                   <ListItemText
                     primary={item.label}
-                    primaryTypographyProps={{
+                    slotProps={{ primary: {
                       fontWeight: isActive ? '700' : '500',
                       color: isActive ? '#0F766E' : '#1E293B'
-                    }}
+                    } }}
                   />
                 </ListItem>
               );
             })}
           </List>
           <Divider />
-          <Box p={2}>
+          <Box sx={{ p: 2 }}>
             {user ? (
               <Button variant="outlined" color="error" fullWidth onClick={handleLogout}>
                 Logout
@@ -305,7 +313,7 @@ const Navbar = ({ onEmergencyClick }) => {
                 {notif.message}
               </Typography>
               <Typography variant="caption" sx={{ color: '#94a3b8', mt: 0.5 }}>
-                {new Date(notif.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {new Date(notif.createdAt).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
               </Typography>
             </MenuItem>
           ))
@@ -320,12 +328,13 @@ const Navbar = ({ onEmergencyClick }) => {
       >
         <MenuItem disabled>
           <Box>
-            <Typography variant="subtitle2" fontWeight="bold">{user?.name}</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 'bold' }}>{user?.name}</Typography>
             <Typography variant="caption" color="textSecondary">{user?.role?.toUpperCase()}</Typography>
           </Box>
         </MenuItem>
         <Divider />
-        <MenuItem onClick={() => { setAnchorElUser(null); navigate(user?.role === 'hospital' ? '/hospital-dashboard' : '/dashboard'); }}>Dashboard</MenuItem>
+        {/* Admins used to be sent to the patient-only /dashboard and bounced to the home page. */}
+        <MenuItem onClick={() => { setAnchorElUser(null); navigate(user?.role === 'hospital' ? '/hospital-dashboard' : ['admin', 'superadmin'].includes(user?.role) ? '/admin-dashboard' : '/dashboard'); }}>Dashboard</MenuItem>
         <MenuItem onClick={handleLogout}>Logout</MenuItem>
       </Menu>
     </>
