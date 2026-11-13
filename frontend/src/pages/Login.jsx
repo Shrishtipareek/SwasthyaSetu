@@ -33,6 +33,17 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
+
+    if (!email.trim() || !password) {
+      setErrorMsg('Please enter both email and password.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setErrorMsg('Please enter a valid email address format.');
+      return;
+    }
+
     setLoading(true);
 
     try {

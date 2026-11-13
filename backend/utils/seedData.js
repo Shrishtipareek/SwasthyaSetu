@@ -27,7 +27,7 @@ const hospitalsData = [
       Bp: { availableUnits: 50, lastUpdated: new Date() },
       Bn: { availableUnits: 8, lastUpdated: new Date() },
       Op: { availableUnits: 65, lastUpdated: new Date() },
-      On: { availableUnits: 1, lastUpdated: new Date() }, // Critical
+      On: { availableUnits: 1, lastUpdated: new Date() }, 
       ABp: { availableUnits: 20, lastUpdated: new Date() },
       ABn: { availableUnits: 4, lastUpdated: new Date() }
     },
@@ -266,6 +266,11 @@ const specializations = [
 
 const seedDatabase = async () => {
   try {
+    if (process.env.NODE_ENV === 'production' && !process.env.ALLOW_SEED_IN_PRODUCTION) {
+      console.error('ABORTED: Seeding will wipe collections. It is not permitted in production without ALLOW_SEED_IN_PRODUCTION=true');
+      process.exit(1);
+    }
+
     const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/SwasthyaSetu';
     await mongoose.connect(mongoUri);
     console.log('Connected to MongoDB for seeding...');

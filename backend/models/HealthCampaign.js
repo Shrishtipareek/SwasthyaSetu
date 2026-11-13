@@ -4,7 +4,11 @@ const HealthCampaignSchema = new mongoose.Schema({
   hospital: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Hospital',
-    required: true,
+    required: false,
+  },
+  organizer: {
+    type: String,
+    default: 'SwasthyaSetu Healthcare Network'
   },
   title: {
     type: String,
@@ -31,6 +35,11 @@ const HealthCampaignSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  status: {
+    type: String,
+    enum: ['active', 'upcoming', 'completed'],
+    default: 'active'
+  },
   registeredUsers: [{
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
@@ -38,6 +47,7 @@ const HealthCampaignSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 HealthCampaignSchema.index({ date: 1 });
+HealthCampaignSchema.index({ status: 1 });
 HealthCampaignSchema.index({ hospital: 1 });
 
 module.exports = mongoose.model('HealthCampaign', HealthCampaignSchema);

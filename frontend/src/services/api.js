@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  timeout: 20000,
 });
 
 // Interceptor to inject JWT token in Authorization header
@@ -15,6 +16,22 @@ API.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
+// Response interceptor to handle expired sessions
+API.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('token');
+      // Redirect to login if on protected route
+      const publicPaths = ['/', '/login', '/register', '/public-dashboard', '/search-hospitals', '/blood-donors', '/campaigns', '/symptom-checker'];
+      if (!publicPaths.includes(window.location.pathname)) {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const authAPI = {
   login: (credentials) => API.post('/auth/login', credentials),
   registerUser: (userData) => API.post('/auth/register', userData),
@@ -24,22 +41,24 @@ export const authAPI = {
 };
 
 export const hospitalAPI = {
-  getAll: (params) => API.get('/hospitals', { params }),
-  getStats: () => API.get('/hospitals/stats'),
-  getById: (id) => API.get(`/hospitals/${id}`),
+  getAll: (params, config = {}) => API.get('/hospitals', { params, ...config }),
+  getConnected: (config = {}) => API.get('/hospitals/connected', config),
+  getNearbyReal: (params, config = {}) => API.get('/hospitals/nearby-real', { params, ...config }),
+  getStats: (config = {}) => API.get('/hospitals/stats', config),
+  getById: (id, config = {}) => API.get(`/hospitals/${id}`, config),
   updateResources: (resources) => API.put('/hospitals/resources', resources),
-  getDashboardStats: () => API.get('/hospitals/dashboard/stats'),
+  getDashboardStats: (config = {}) => API.get('/hospitals/dashboard/stats', config),
 };
 
 export const doctorAPI = {
-  getDoctors: (params) => API.get('/doctors', { params }),
+  getDoctors: (params, config = {}) => API.get('/doctors', { params, ...config }),
   addDoctor: (docData) => API.post('/doctors', docData),
   removeDoctor: (id) => API.delete(`/doctors/${id}`),
 };
 
 export const appointmentAPI = {
   book: (apptData) => API.post('/appointments', apptData),
-  getAppointments: () => API.get('/appointments'),
+  getAppointments: (params, config = {}) => API.get('/appointments', { params, ...config }),
   cancel: (id) => API.put(`/appointments/${id}/cancel`),
 };
 
@@ -86,13 +105,15 @@ export const adminAPI = {
 
 export const bloodDonorAPI = {
   register: (donorData) => API.post('/blood-donors', donorData),
-  getDonors: (params) => API.get('/blood-donors', { params }),
+  getDonors: (params, config = {}) => API.get('/blood-donors', { params, ...config }),
+  getMyProfile: () => API.get('/blood-donors/me'),
+  updateMyProfile: (data) => API.put('/blood-donors/me', data),
   remove: () => API.delete('/blood-donors/me'),
 };
 
 export const medicalDocumentAPI = {
   upload: (docData) => API.post('/documents', docData),
-  getDocuments: (params) => API.get('/documents', { params }),
+  getDocuments: (params, config = {}) => API.get('/documents', { params, ...config }),
   delete: (id) => API.delete(`/documents/${id}`),
 };
 

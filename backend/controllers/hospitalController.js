@@ -4,77 +4,9 @@ const Ambulance = require('../models/Ambulance');
 const ResourceRequest = require('../models/ResourceRequest');
 const Appointment = require('../models/Appointment');
 const Notification = require('../models/Notification');
+const { calculateDistance } = require('../utils/geo');
+const { fallbackHospitals, verifiedRegionalHospitals } = require('../utils/fallbackData');
 
-// Helper to calculate distance in km using Haversine formula
-const calculateDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371; // Radius of the earth in km
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c; // Distance in km
-};
-
-const seedHospitalsFallback = [
-  {
-    _id: "65d000000000000000000001",
-    name: "All India Institute of Medical Sciences (AIIMS)",
-    email: "admin@aiims.edu",
-    phone: "011-26588500",
-    emergencyPhone: "011-26594405",
-    address: "Ansari Nagar, New Delhi",
-    hospitalType: "Government",
-    location: { lat: 28.5672, lng: 77.2100 },
-    departments: ['Cardiology', 'Pediatrics', 'Neurology', 'Orthopedics', 'General Medicine'],
-    verifiedStatus: 'verified',
-    beds: { total: 1200, occupied: 1150, available: 50, icuTotal: 150, icuAvailable: 2, emergencyTotal: 80, emergencyAvailable: 0, ventilatorsTotal: 100, ventilatorsAvailable: 5 },
-    bloodInventory: {
-      Ap: { availableUnits: 45 }, An: { availableUnits: 12 }, Bp: { availableUnits: 50 }, Bn: { availableUnits: 8 },
-      Op: { availableUnits: 65 }, On: { availableUnits: 1 }, ABp: { availableUnits: 20 }, ABn: { availableUnits: 4 }
-    }
-  },
-  {
-    _id: "65d000000000000000000002",
-    name: "Apollo Hospital Delhi",
-    email: "info@apollohospitals.com",
-    phone: "011-26925858",
-    emergencyPhone: "011-26925801",
-    address: "Sarita Vihar, Delhi Mathura Road, New Delhi",
-    hospitalType: "Private",
-    location: { lat: 28.5361, lng: 77.2882 },
-    departments: ['Cardiology', 'Pediatrics', 'Neurology', 'Orthopedics', 'General Medicine'],
-    verifiedStatus: 'verified',
-    beds: { total: 700, occupied: 520, available: 180, icuTotal: 80, icuAvailable: 15, emergencyTotal: 40, emergencyAvailable: 12, ventilatorsTotal: 50, ventilatorsAvailable: 14 },
-    bloodInventory: {
-      Ap: { availableUnits: 30 }, An: { availableUnits: 6 }, Bp: { availableUnits: 32 }, Bn: { availableUnits: 5 },
-      Op: { availableUnits: 40 }, On: { availableUnits: 10 }, ABp: { availableUnits: 15 }, ABn: { availableUnits: 2 }
-    }
-  },
-  {
-    _id: "65d000000000000000000003",
-    name: "Max Super Speciality Hospital Saket",
-    email: "contact@maxhealthcare.com",
-    phone: "011-26515050",
-    emergencyPhone: "011-40554055",
-    address: "1-2, Press Enclave Road, Saket, New Delhi",
-    hospitalType: "Private",
-    location: { lat: 28.5284, lng: 77.2198 },
-    departments: ['Cardiology', 'Pediatrics', 'Neurology', 'Orthopedics', 'General Medicine'],
-    verifiedStatus: 'verified',
-    beds: { total: 500, occupied: 450, available: 50, icuTotal: 60, icuAvailable: 4, emergencyTotal: 30, emergencyAvailable: 2, ventilatorsTotal: 30, ventilatorsAvailable: 4 },
-    bloodInventory: {
-      Ap: { availableUnits: 18 }, An: { availableUnits: 4 }, Bp: { availableUnits: 20 }, Bn: { availableUnits: 3 },
-      Op: { availableUnits: 25 }, On: { availableUnits: 3 }, ABp: { availableUnits: 8 }, ABn: { availableUnits: 1 }
-    }
-  }
-];
-
-// @desc    Get all hospitals with optional search/filters
-// @route   GET /api/hospitals
-// @access  Public
 const getHospitals = async (req, res) => {
   try {
     const { name, location, department, specialization, needsEmergency, needsIcu, needsBlood, lat, lng, maxDistance } = req.query;
@@ -110,7 +42,7 @@ const getHospitals = async (req, res) => {
       hospitals = await Hospital.find(query);
     } catch (dbErr) {
       console.warn('DB query error, serving seed fallback hospitals:', dbErr.message);
-      hospitals = seedHospitalsFallback;
+      hospitals = fallbackHospitals;
     }
 
     if (lat && lng) {
@@ -133,7 +65,7 @@ const getHospitals = async (req, res) => {
 
     res.json(hospitals);
   } catch (error) {
-    res.json(seedHospitalsFallback);
+    res.json(fallbackHospitals);
   }
 };
 
@@ -143,13 +75,13 @@ const getHospitals = async (req, res) => {
 const getPublicStats = async (req, res) => {
   try {
     let hospitals = [];
-    let ambulancesCount = 12;
+    let ambulancesCount = 0;
     try {
-      hospitals = await Hospital.find({ verifiedStatus: 'verified' });
+      hospitals = await Hospital.find({});
       ambulancesCount = await Ambulance.countDocuments({ status: 'available' });
     } catch (dbErr) {
-      console.warn('DB query error, serving seed fallback stats:', dbErr.message);
-      hospitals = seedHospitalsFallback;
+      console.warn('DB query error in getPublicStats:', dbErr.message);
+      return res.status(500).json({ message: 'Database error fetching hospital statistics' });
     }
 
     let totalBeds = 0;
@@ -171,29 +103,47 @@ const getPublicStats = async (req, res) => {
       }
     });
 
-    const emergencyHospitalsCount = hospitals.filter(h => h.beds?.emergencyAvailable > 0).length;
+    const emergencyHospitalsCount = hospitals.filter(h => (h.beds?.emergencyAvailable || 0) > 0).length;
 
     res.json({
-      hospitalsConnected: hospitals.length || 10,
-      availableBeds: availableBeds || 500,
-      totalBeds: totalBeds || 2400,
-      availableIcuBeds: availableIcu || 50,
-      totalIcuBeds: totalIcu || 300,
-      availableAmbulances: ambulancesCount || 12,
-      bloodUnitsAvailable: bloodUnits || 1500,
-      emergencyHospitals: emergencyHospitalsCount || 8
+      hospitalsConnected: hospitals.length,
+      availableBeds,
+      totalBeds,
+      availableIcuBeds: availableIcu,
+      totalIcuBeds: totalIcu,
+      availableAmbulances: ambulancesCount,
+      availableBloodUnits: bloodUnits,
+      bloodUnitsAvailable: bloodUnits,
+      emergencyHospitalsCount,
+      hospitals: hospitals.map(h => ({
+        _id: h._id,
+        name: h.name,
+        address: h.address,
+        hospitalType: h.hospitalType || 'Hospital',
+        verifiedStatus: h.verifiedStatus || 'pending',
+        emergencyPhone: h.emergencyPhone,
+        contactPhone: h.contactPhone,
+        website: h.website || null,
+        availableBeds: h.beds?.available || 0,
+        icuAvailable: h.beds?.icuAvailable || 0
+      }))
     });
   } catch (error) {
-    res.json({
-      hospitalsConnected: 10,
-      availableBeds: 500,
-      totalBeds: 2400,
-      availableIcuBeds: 50,
-      totalIcuBeds: 300,
-      availableAmbulances: 12,
-      bloodUnitsAvailable: 1500,
-      emergencyHospitals: 8
-    });
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get list of all connected/registered hospitals for public modal
+// @route   GET /api/hospitals/connected
+// @access  Public
+const getConnectedHospitals = async (req, res) => {
+  try {
+    const hospitals = await Hospital.find({})
+      .select('name address emergencyPhone contactPhone website hospitalType verifiedStatus beds location operatingHours')
+      .sort({ createdAt: -1 });
+    res.json(hospitals);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -220,9 +170,6 @@ const getHospitalById = async (req, res) => {
   }
 };
 
-// @desc    Update real-time resources/inventory
-// @route   PUT /api/hospitals/resources
-// @access  Private (Hospital admin only)
 const updateResources = async (req, res) => {
   try {
     const hospital = await Hospital.findOne({ user: req.user._id });
@@ -233,11 +180,18 @@ const updateResources = async (req, res) => {
     const { beds, bloodInventory, organs, thresholds } = req.body;
 
     if (beds) {
-      hospital.beds = { ...hospital.beds, ...beds };
-      // Recalculate available total beds
-      if (beds.occupied !== undefined || beds.total !== undefined) {
-        const total = beds.total !== undefined ? beds.total : hospital.beds.total;
-        const occupied = beds.occupied !== undefined ? beds.occupied : hospital.beds.occupied;
+      const sanitizedBeds = {};
+      Object.keys(beds).forEach(key => {
+        if (typeof beds[key] === 'number') {
+          sanitizedBeds[key] = Math.max(0, beds[key]);
+        } else {
+          sanitizedBeds[key] = beds[key];
+        }
+      });
+      hospital.beds = { ...hospital.beds, ...sanitizedBeds };
+      if (sanitizedBeds.occupied !== undefined || sanitizedBeds.total !== undefined) {
+        const total = sanitizedBeds.total !== undefined ? sanitizedBeds.total : hospital.beds.total;
+        const occupied = sanitizedBeds.occupied !== undefined ? sanitizedBeds.occupied : hospital.beds.occupied;
         hospital.beds.available = Math.max(0, total - occupied);
       }
     }
@@ -245,7 +199,7 @@ const updateResources = async (req, res) => {
     if (bloodInventory) {
       Object.keys(bloodInventory).forEach(group => {
         if (hospital.bloodInventory[group]) {
-          hospital.bloodInventory[group].availableUnits = bloodInventory[group].availableUnits;
+          hospital.bloodInventory[group].availableUnits = Math.max(0, parseInt(bloodInventory[group].availableUnits) || 0);
           hospital.bloodInventory[group].lastUpdated = Date.now();
         }
       });
@@ -266,7 +220,6 @@ const updateResources = async (req, res) => {
 
     await hospital.save();
 
-    // Check critical thresholds and trigger notifications/alerts
     const alerts = [];
     if (hospital.beds.icuAvailable <= hospital.thresholds.icuLow) {
       alerts.push(`ICU Beds are low: only ${hospital.beds.icuAvailable} available.`);
@@ -293,8 +246,6 @@ const updateResources = async (req, res) => {
         });
       }
     }
-
-    // Trigger Socket.io real-time resource update
     if (req.app.get('socketio')) {
       const io = req.app.get('socketio');
       io.emit('resource_update', {
@@ -312,9 +263,6 @@ const updateResources = async (req, res) => {
   }
 };
 
-// @desc    Get Stats for Hospital Admin Dashboard
-// @route   GET /api/hospitals/dashboard/stats
-// @access  Private (Hospital admin only)
 const getHospitalDashboardStats = async (req, res) => {
   try {
     const hospital = await Hospital.findOne({ user: req.user._id });
@@ -361,10 +309,279 @@ const getHospitalDashboardStats = async (req, res) => {
   }
 };
 
+// In-memory cache with 10-minute TTL to prevent hammering Overpass API
+const osmCache = new Map();
+const OSM_CACHE_TTL = 10 * 60 * 1000;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of osmCache.entries()) {
+    if (now - entry.timestamp > OSM_CACHE_TTL) {
+      osmCache.delete(key);
+    }
+  }
+}, 5 * 60 * 1000).unref();
+
+const OVERPASS_ENDPOINTS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://lz4.overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter'
+];
+
+/**
+ * @desc    Discover real hospitals and healthcare facilities from OpenStreetMap via Overpass API
+ * @route   GET /api/hospitals/nearby-real
+ * @access  Public
+ */
+const getNearbyRealHospitals = async (req, res) => {
+  try {
+    const { lat, lng, radius = 10000, type } = req.query;
+
+    const userLat = parseFloat(lat);
+    const userLng = parseFloat(lng);
+
+    if (isNaN(userLat) || userLat < -90 || userLat > 90 || isNaN(userLng) || userLng < -180 || userLng > 180) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid coordinates. Please provide valid latitude (-90 to 90) and longitude (-180 to 180).'
+      });
+    }
+
+    const radiusMeters = Math.min(50000, Math.max(1000, parseInt(radius, 10) || 10000));
+    const cacheKey = `${userLat.toFixed(3)}_${userLng.toFixed(3)}_${radiusMeters}`;
+
+    if (osmCache.has(cacheKey)) {
+      const cached = osmCache.get(cacheKey);
+      if (Date.now() - cached.timestamp < OSM_CACHE_TTL) {
+        let results = cached.data;
+        if (type && type !== 'all') {
+          results = results.filter(h => h.category?.toLowerCase().includes(type.toLowerCase()));
+        }
+        return res.json({
+          success: true,
+          cached: true,
+          source: 'OpenStreetMap / Overpass API (Cached)',
+          userCoordinates: { lat: userLat, lng: userLng },
+          radiusMeters,
+          count: results.length,
+          hospitals: results
+        });
+      }
+    }
+
+    // Overpass QL Query
+    const overpassQuery = `[out:json][timeout:25];
+(
+  node["amenity"="hospital"](around:${radiusMeters},${userLat},${userLng});
+  way["amenity"="hospital"](around:${radiusMeters},${userLat},${userLng});
+  relation["amenity"="hospital"](around:${radiusMeters},${userLat},${userLng});
+  node["amenity"="clinic"](around:${radiusMeters},${userLat},${userLng});
+  way["amenity"="clinic"](around:${radiusMeters},${userLat},${userLng});
+  node["healthcare"~"hospital|clinic"](around:${radiusMeters},${userLat},${userLng});
+  way["healthcare"~"hospital|clinic"](around:${radiusMeters},${userLat},${userLng});
+  node["emergency"="yes"](around:${radiusMeters},${userLat},${userLng});
+  way["emergency"="yes"](around:${radiusMeters},${userLat},${userLng});
+);
+out center tags qt;`;
+
+    let overpassData = null;
+    let lastError = null;
+
+    for (const endpoint of OVERPASS_ENDPOINTS) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 18000);
+
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'SwasthyaSetu-EmergencyNetwork/1.0'
+          },
+          body: `data=${encodeURIComponent(overpassQuery)}`,
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          overpassData = await response.json();
+          break;
+        } else {
+          lastError = new Error(`Overpass server responded with status: ${response.status}`);
+        }
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    if (!overpassData || !Array.isArray(overpassData.elements)) {
+      console.warn('Overpass API query failed across endpoints:', lastError?.message);
+
+      let registeredHospitals = [];
+      try {
+        registeredHospitals = await Hospital.find({});
+      } catch (e) {
+        registeredHospitals = [];
+      }
+
+      const registeredMatches = registeredHospitals.map(h => {
+        const obj = typeof h.toObject === 'function' ? h.toObject() : h;
+        const hLat = obj.location?.coordinates?.[1] || obj.location?.lat || obj.lat;
+        const hLng = obj.location?.coordinates?.[0] || obj.location?.lng || obj.lng;
+        const dist = (hLat && hLng) ? calculateDistance(userLat, userLng, hLat, hLng) : 999;
+        return {
+          id: String(obj._id || 'hosp-' + Math.random()),
+          name: obj.name,
+          address: obj.address || 'Address on record',
+          lat: hLat,
+          lng: hLng,
+          distanceKm: Number(dist.toFixed(1)),
+          category: 'Hospital (SwasthyaSetu Network)',
+          phone: obj.emergencyPhone || obj.contactPhone || null,
+          website: obj.website || null,
+          isEmergency: Boolean(obj.beds?.emergencyAvailable > 0),
+          isRegisteredNetwork: true,
+          beds: obj.beds
+        };
+      }).filter(h => h.distanceKm <= (radiusMeters / 1000) * 1.5);
+
+      const regionalMatches = (verifiedRegionalHospitals || []).map(h => {
+        const dist = calculateDistance(userLat, userLng, h.lat, h.lng);
+        return {
+          ...h,
+          distanceKm: Number(dist.toFixed(1)),
+          isRegisteredNetwork: false
+        };
+      }).filter(h => h.distanceKm <= (radiusMeters / 1000) * 1.5);
+
+      const fallbackList = [...registeredMatches, ...regionalMatches]
+        .sort((a, b) => a.distanceKm - b.distanceKm);
+
+      return res.json({
+        success: true,
+        source: 'SwasthyaSetu Verified Network (OSM Gateway Fallback)',
+        warning: 'Live OpenStreetMap query temporarily unavailable. Displaying verified healthcare facilities.',
+        userCoordinates: { lat: userLat, lng: userLng },
+        radiusMeters,
+        count: fallbackList.length,
+        hospitals: fallbackList
+      });
+    }
+
+    // Process Overpass elements
+    const rawElements = overpassData.elements;
+    const facilities = [];
+    const seenMap = new Map();
+
+    for (const elem of rawElements) {
+      const tags = elem.tags || {};
+      const rawName = tags.name || tags['name:en'] || tags['name:hi'] || tags.official_name || tags.operator;
+
+      const isHospital = tags.amenity === 'hospital' || tags.healthcare === 'hospital';
+      const isClinic = tags.amenity === 'clinic' || tags.healthcare === 'clinic';
+      const isEmergency = tags.emergency === 'yes' || tags['healthcare:emergency'] === 'yes';
+
+      if (!rawName && !isHospital && !isEmergency) {
+        continue;
+      }
+
+      const hLat = elem.type === 'node' ? elem.lat : elem.center?.lat;
+      const hLng = elem.type === 'node' ? elem.lon : elem.center?.lon;
+
+      if (hLat == null || hLng == null) continue;
+
+      const dist = calculateDistance(userLat, userLng, hLat, hLng);
+      if (dist > (radiusMeters / 1000) * 1.05) continue;
+
+      const displayName = rawName || (isEmergency ? 'Emergency Healthcare Facility' : isClinic ? 'Community Health Clinic' : 'Healthcare Facility');
+
+      const addrParts = [
+        tags['addr:housenumber'],
+        tags['addr:street'],
+        tags['addr:suburb'] || tags['addr:neighbourhood'] || tags['addr:district'],
+        tags['addr:city'] || tags['addr:state_district'] || tags['addr:county'],
+        tags['addr:state'],
+        tags['addr:postcode']
+      ].filter(Boolean);
+      const address = tags['addr:full'] || (addrParts.length > 0 ? addrParts.join(', ') : 'Address not listed in OSM registry');
+
+      const phone = tags.phone || tags['contact:phone'] || tags['contact:mobile'] || tags['emergency:phone'] || null;
+      const website = tags.website || tags['contact:website'] || tags.url || null;
+
+      let category = 'General Hospital';
+      if (isEmergency) {
+        category = 'Emergency Medical Center';
+      } else if (tags['operator:type'] === 'government' || tags['operator:type'] === 'public' || tags.government === 'hospital') {
+        category = 'Government Hospital';
+      } else if (tags['operator:type'] === 'private') {
+        category = 'Private Hospital';
+      } else if (isClinic) {
+        category = 'Clinic / Medical Centre';
+      } else if (tags['healthcare:speciality']) {
+        category = `Multi-Specialty (${tags['healthcare:speciality'].replace(/_/g, ' ')})`;
+      }
+
+      const normKey = `${displayName.toLowerCase().replace(/[^a-z0-9]/g, '')}_${hLat.toFixed(2)}_${hLng.toFixed(2)}`;
+      if (seenMap.has(normKey)) {
+        continue;
+      }
+      seenMap.set(normKey, true);
+
+      facilities.push({
+        id: `osm-${elem.type}-${elem.id}`,
+        osmId: elem.id,
+        osmType: elem.type,
+        name: displayName,
+        address,
+        lat: Number(hLat.toFixed(6)),
+        lng: Number(hLng.toFixed(6)),
+        distanceKm: Number(dist.toFixed(1)),
+        category,
+        phone,
+        website,
+        isEmergency,
+        openingHours: tags.opening_hours || null,
+        operator: tags.operator || null,
+        bedsEstimate: tags.beds ? parseInt(tags.beds, 10) : null
+      });
+    }
+
+    facilities.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    osmCache.set(cacheKey, {
+      timestamp: Date.now(),
+      data: facilities
+    });
+
+    let results = facilities;
+    if (type && type !== 'all') {
+      results = results.filter(h => h.category?.toLowerCase().includes(type.toLowerCase()));
+    }
+
+    res.json({
+      success: true,
+      cached: false,
+      source: 'OpenStreetMap / Overpass API',
+      userCoordinates: { lat: userLat, lng: userLng },
+      radiusMeters,
+      count: results.length,
+      hospitals: results
+    });
+  } catch (error) {
+    console.error('Error in getNearbyRealHospitals:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to discover nearby healthcare facilities. ' + error.message
+    });
+  }
+};
+
 module.exports = {
   getHospitals,
   getPublicStats,
+  getConnectedHospitals,
   getHospitalById,
   updateResources,
-  getHospitalDashboardStats
+  getHospitalDashboardStats,
+  getNearbyRealHospitals
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -34,6 +34,7 @@ const Navbar = ({ onEmergencyClick }) => {
   const { user, logout } = useAuth();
   const socket = useSocket();
   const navigate = useNavigate();
+  const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
@@ -123,11 +124,28 @@ const Navbar = ({ onEmergencyClick }) => {
 
           {!isMobile ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              {filteredMenuItems.map(item => (
-                <Button key={item.label} component={RouterLink} to={item.path} sx={{ color: '#475569', textTransform: 'none', fontWeight: '600', borderRadius: '8px', px: 1.8, py: 0.8, '&:hover': { color: '#0F766E', backgroundColor: '#E6F6F3' } }}>
-                  {item.label}
-                </Button>
-              ))}
+              {filteredMenuItems.map(item => {
+                const isActive = location.pathname === item.path;
+                return (
+                  <Button
+                    key={item.label}
+                    component={RouterLink}
+                    to={item.path}
+                    sx={{
+                      color: isActive ? '#0F766E' : '#475569',
+                      backgroundColor: isActive ? '#E6F6F3' : 'transparent',
+                      textTransform: 'none',
+                      fontWeight: isActive ? '700' : '600',
+                      borderRadius: '8px',
+                      px: 1.8,
+                      py: 0.8,
+                      '&:hover': { color: '#0F766E', backgroundColor: '#E6F6F3' }
+                    }}
+                  >
+                    {item.label}
+                  </Button>
+                );
+              })}
 
               <Button
                 variant="contained"
@@ -202,11 +220,32 @@ const Navbar = ({ onEmergencyClick }) => {
           </Typography>
           <Divider />
           <List>
-            {filteredMenuItems.map((item) => (
-              <ListItem button key={item.label} component={RouterLink} to={item.path} onClick={() => setDrawerOpen(false)}>
-                <ListItemText primary={item.label} />
-              </ListItem>
-            ))}
+            {filteredMenuItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <ListItem
+                  key={item.label}
+                  component={RouterLink}
+                  to={item.path}
+                  onClick={() => setDrawerOpen(false)}
+                  sx={{
+                    borderRadius: '8px',
+                    mb: 0.5,
+                    backgroundColor: isActive ? '#E6F6F3' : 'transparent',
+                    color: isActive ? '#0F766E' : '#1E293B',
+                    fontWeight: isActive ? 700 : 500
+                  }}
+                >
+                  <ListItemText
+                    primary={item.label}
+                    primaryTypographyProps={{
+                      fontWeight: isActive ? '700' : '500',
+                      color: isActive ? '#0F766E' : '#1E293B'
+                    }}
+                  />
+                </ListItem>
+              );
+            })}
           </List>
           <Divider />
           <Box p={2}>

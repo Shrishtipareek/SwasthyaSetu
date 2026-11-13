@@ -4,7 +4,7 @@ const { createCampaign, getCampaigns, registerForCampaign } = require('../contro
 const { protect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/')
-  .post(protect, authorize('hospital'), createCampaign)
+  .post(protect, authorize('hospital', 'admin'), createCampaign)
   .get(getCampaigns);
 
 router.post('/:id/register', protect, registerForCampaign);

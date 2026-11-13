@@ -1,25 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Container,
   Grid,
   Typography,
   Card,
   CardContent,
-  Button,
   Box,
-  Paper,
   Tabs,
   Tab,
-  TextField,
-  MenuItem,
   Alert,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Avatar
+  Avatar,
+  CircularProgress
 } from '@mui/material';
 import {
   LocalHospital,
@@ -28,6 +19,10 @@ import {
 } from '@mui/icons-material';
 import { hospitalAPI, doctorAPI, ambulanceAPI, campaignAPI } from '../services/api';
 import { useSocket } from '../context/SocketContext';
+import HospitalInventoryTab from '../components/hospital/HospitalInventoryTab';
+import HospitalDoctorsTab from '../components/hospital/HospitalDoctorsTab';
+import HospitalAmbulanceTab from '../components/hospital/HospitalAmbulanceTab';
+import HospitalCampaignTab from '../components/hospital/HospitalCampaignTab';
 
 const HospitalDashboard = () => {
   const socket = useSocket();
@@ -65,19 +60,18 @@ const HospitalDashboard = () => {
     Ap: 0, An: 0, Bp: 0, Bn: 0, Op: 0, On: 0, ABp: 0, ABn: 0
   });
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const { data } = await hospitalAPI.getDashboardStats();
       setStats(data);
-      
-      // Load inventory values
+
       if (data.hospital) {
         setTotalBeds(data.hospital.beds?.total || 0);
         setOccupiedBeds(data.hospital.beds?.occupied || 0);
         setIcuAvailable(data.hospital.beds?.icuAvailable || 0);
         setEmergencyAvailable(data.hospital.beds?.emergencyAvailable || 0);
         setVentilatorsAvailable(data.hospital.beds?.ventilatorsAvailable || 0);
-        
+
         const bi = data.hospital.bloodInventory || {};
         setBloodUnits({
           Ap: bi.Ap?.availableUnits || 0,
@@ -95,27 +89,25 @@ const HospitalDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchStats();
   }, []);
 
   useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  useEffect(() => {
     if (socket) {
-      socket.on('resource_request_received', () => {
-        fetchStats();
-      });
-      socket.on('new_appointment', () => {
-        fetchStats();
-      });
+      socket.on('resource_request_received', () => fetchStats());
+      socket.on('new_appointment', () => fetchStats());
+      socket.on('resource_update', () => fetchStats());
 
       return () => {
         socket.off('resource_request_received');
         socket.off('new_appointment');
+        socket.off('resource_update');
       };
     }
-  }, [socket]);
+  }, [socket, fetchStats]);
 
   const handleUpdateInventory = async (e) => {
     e.preventDefault();
@@ -152,6 +144,7 @@ const HospitalDashboard = () => {
   const handleAddDoctor = async (e) => {
     e.preventDefault();
     setSuccessMsg('');
+    setErrorMsg('');
     try {
       await doctorAPI.addDoctor({
         name: docName,
@@ -162,14 +155,15 @@ const HospitalDashboard = () => {
       setDocContact('');
       setSuccessMsg(`Dr. ${docName} added successfully.`);
       fetchStats();
-    } catch (_err) {
-      setErrorMsg('Failed to add doctor.');
+    } catch (err) {
+      setErrorMsg(err.response?.data?.message || 'Failed to add doctor.');
     }
   };
 
   const handleRegisterAmbulance = async (e) => {
     e.preventDefault();
     setSuccessMsg('');
+    setErrorMsg('');
     try {
       await ambulanceAPI.register({
         licensePlate: ambPlate,
@@ -181,14 +175,15 @@ const HospitalDashboard = () => {
       setAmbContact('');
       setSuccessMsg('Ambulance registered successfully.');
       fetchStats();
-    } catch (_err) {
-      setErrorMsg('Failed to register ambulance.');
+    } catch (err) {
+      setErrorMsg(err.response?.data?.message || 'Failed to register ambulance.');
     }
   };
 
   const handleCreateCampaign = async (e) => {
     e.preventDefault();
     setSuccessMsg('');
+    setErrorMsg('');
     try {
       await campaignAPI.create({
         title: campTitle,
@@ -202,12 +197,18 @@ const HospitalDashboard = () => {
       setCampDesc('');
       setCampVenue('');
       setSuccessMsg('Campaign drive published.');
-    } catch (_err) {
-      setErrorMsg('Failed to create campaign.');
+    } catch (err) {
+      setErrorMsg(err.response?.data?.message || 'Failed to create campaign.');
     }
   };
 
-  if (loading) return <Typography align="center" py={10}>Loading Hospital Dashboard...</Typography>;
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <CircularProgress color="primary" />
+      </Box>
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
@@ -224,10 +225,10 @@ const HospitalDashboard = () => {
       {/* Grid Stats Summary Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         {[
-          { label: 'Total Available Beds', value: stats?.hospital?.beds?.available, icon: <LocalHospital />, color: '#0F766E' },
-          { label: 'ICU Beds Available', value: stats?.hospital?.beds?.icuAvailable, icon: <LocalHospital />, color: '#0D9488' },
-          { label: 'Doctors Available', value: stats?.doctorsCount, icon: <People />, color: '#0F766E' },
-          { label: 'Pending H2H Requests', value: stats?.pendingRequestsCount, icon: <NotificationsActive />, color: '#ea580c' }
+          { label: 'Total Available Beds', value: stats?.hospital?.beds?.available ?? 0, icon: <LocalHospital />, color: '#0F766E' },
+          { label: 'ICU Beds Available', value: stats?.hospital?.beds?.icuAvailable ?? 0, icon: <LocalHospital />, color: '#0D9488' },
+          { label: 'Doctors Registered', value: stats?.doctorsCount ?? 0, icon: <People />, color: '#0F766E' },
+          { label: 'Pending H2H Requests', value: stats?.pendingRequestsCount ?? 0, icon: <NotificationsActive />, color: '#ea580c' }
         ].map((card, idx) => (
           <Grid item xs={12} sm={6} md={3} key={idx}>
             <Card sx={{ borderLeft: `5px solid ${card.color}`, borderRadius: '12px', borderTop: '1px solid #E2E8F0', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
@@ -266,139 +267,49 @@ const HospitalDashboard = () => {
 
       {/* Tab 0: Inventory Manager */}
       {tabValue === 0 && (
-        <form onSubmit={handleUpdateInventory}>
-          <Grid container spacing={4}>
-            <Grid item xs={12} md={6}>
-              <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-                <Typography variant="h6" fontWeight="bold" mb={2}>Beds & Ventilators Inventory</Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={6}><TextField label="Total Bed Capacity" type="number" fullWidth value={totalBeds} onChange={(e) => setTotalBeds(e.target.value)} /></Grid>
-                  <Grid item xs={6}><TextField label="Occupied Beds" type="number" fullWidth value={occupiedBeds} onChange={(e) => setOccupiedBeds(e.target.value)} /></Grid>
-                  <Grid item xs={6}><TextField label="ICU Beds Available" type="number" fullWidth value={icuAvailable} onChange={(e) => setIcuAvailable(e.target.value)} /></Grid>
-                  <Grid item xs={6}><TextField label="Emergency Beds Available" type="number" fullWidth value={emergencyAvailable} onChange={(e) => setEmergencyAvailable(e.target.value)} /></Grid>
-                  <Grid item xs={12}><TextField label="Ventilators Available" type="number" fullWidth value={ventilatorsAvailable} onChange={(e) => setVentilatorsAvailable(e.target.value)} /></Grid>
-                </Grid>
-              </Paper>
-            </Grid>
-            <Grid item xs={12} md={6}>
-              <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-                <Typography variant="h6" fontWeight="bold" mb={2}>Blood Bank Registry (Units)</Typography>
-                <Grid container spacing={2}>
-                  {Object.keys(bloodUnits).map((grp) => (
-                    <Grid item xs={3} key={grp}>
-                      <TextField
-                        label={grp.replace('p', '+').replace('n', '-')}
-                        type="number"
-                        fullWidth
-                        value={bloodUnits[grp]}
-                        onChange={(e) => setBloodUnits({ ...bloodUnits, [grp]: e.target.value })}
-                      />
-                    </Grid>
-                  ))}
-                </Grid>
-              </Paper>
-            </Grid>
-            <Grid item xs={12}>
-              <Button type="submit" variant="contained" size="large" sx={{ px: 5, py: 1.5, fontWeight: 'bold' }}>
-                Save Real-time Resource stock
-              </Button>
-            </Grid>
-          </Grid>
-        </form>
+        <HospitalInventoryTab
+          totalBeds={totalBeds} setTotalBeds={setTotalBeds}
+          occupiedBeds={occupiedBeds} setOccupiedBeds={setOccupiedBeds}
+          icuAvailable={icuAvailable} setIcuAvailable={setIcuAvailable}
+          emergencyAvailable={emergencyAvailable} setEmergencyAvailable={setEmergencyAvailable}
+          ventilatorsAvailable={ventilatorsAvailable} setVentilatorsAvailable={setVentilatorsAvailable}
+          bloodUnits={bloodUnits} setBloodUnits={setBloodUnits}
+          handleUpdateInventory={handleUpdateInventory}
+        />
       )}
 
       {/* Tab 1: Manage Staff */}
       {tabValue === 1 && (
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={5}>
-            <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-              <Typography variant="h6" fontWeight="bold" mb={2}>Add Doctor profile</Typography>
-              <form onSubmit={handleAddDoctor}>
-                <TextField label="Doctor Name" fullWidth required value={docName} onChange={(e) => setDocName(e.target.value)} sx={{ mb: 2 }} />
-                <TextField select label="Specialization" fullWidth value={docSpec} onChange={(e) => setDocSpec(e.target.value)} sx={{ mb: 2 }}>
-                  {['General Medicine', 'Cardiologist', 'Pediatrician', 'Dermatologist', 'Neurologist', 'Orthopedist'].map(s => (
-                    <MenuItem key={s} value={s}>{s}</MenuItem>
-                  ))}
-                </TextField>
-                <TextField label="Contact Number" fullWidth required value={docContact} onChange={(e) => setDocContact(e.target.value)} sx={{ mb: 3 }} />
-                <Button type="submit" variant="contained" fullWidth sx={{ fontWeight: 'bold' }}>Add Doctor</Button>
-              </form>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} md={7}>
-            <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-              <Typography variant="h6" fontWeight="bold" mb={2}>Recent Bookings / Appointments</Typography>
-              {stats?.recentAppointments?.length === 0 ? (
-                <Typography color="textSecondary" align="center" py={4}>No recent bookings</Typography>
-              ) : (
-                <TableContainer>
-                  <Table size="small">
-                    <TableHead>
-                      <TableRow>
-                        <TableCell><strong>Patient</strong></TableCell>
-                        <TableCell><strong>Doctor</strong></TableCell>
-                        <TableCell><strong>Slot</strong></TableCell>
-                        <TableCell><strong>Status</strong></TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {stats?.recentAppointments?.map(a => (
-                        <TableRow key={a._id}>
-                          <TableCell>{a.patient?.name}</TableCell>
-                          <TableCell>Dr. {a.doctor?.name}</TableCell>
-                          <TableCell>{a.date} | {a.timeSlot}</TableCell>
-                          <TableCell>{a.status.toUpperCase()}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
-            </Paper>
-          </Grid>
-        </Grid>
+        <HospitalDoctorsTab
+          docName={docName} setDocName={setDocName}
+          docSpec={docSpec} setDocSpec={setDocSpec}
+          docContact={docContact} setDocContact={setDocContact}
+          handleAddDoctor={handleAddDoctor}
+          recentAppointments={stats?.recentAppointments}
+        />
       )}
 
       {/* Tab 2: Manage Ambulance */}
       {tabValue === 2 && (
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={5}>
-            <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-              <Typography variant="h6" fontWeight="bold" mb={2}>Register Ambulance</Typography>
-              <form onSubmit={handleRegisterAmbulance}>
-                <TextField label="License Plate Number" placeholder="DL-3C-XX-XXXX" fullWidth required value={ambPlate} onChange={(e) => setAmbPlate(e.target.value)} sx={{ mb: 2 }} />
-                <TextField label="Driver Name" fullWidth required value={ambDriver} onChange={(e) => setAmbDriver(e.target.value)} sx={{ mb: 2 }} />
-                <TextField label="Driver Hotline" fullWidth required value={ambContact} onChange={(e) => setAmbContact(e.target.value)} sx={{ mb: 3 }} />
-                <Button type="submit" variant="contained" fullWidth sx={{ fontWeight: 'bold' }}>Register Ambulance</Button>
-              </form>
-            </Paper>
-          </Grid>
-        </Grid>
+        <HospitalAmbulanceTab
+          ambPlate={ambPlate} setAmbPlate={setAmbPlate}
+          ambDriver={ambDriver} setAmbDriver={setAmbDriver}
+          ambContact={ambContact} setAmbContact={setAmbContact}
+          handleRegisterAmbulance={handleRegisterAmbulance}
+        />
       )}
 
       {/* Tab 3: Host Health Drives */}
       {tabValue === 3 && (
-        <Grid container spacing={4}>
-          <Grid item xs={12} md={6}>
-            <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '12px' }}>
-              <Typography variant="h6" fontWeight="bold" mb={2}>Publish Health Campaign / Drive</Typography>
-              <form onSubmit={handleCreateCampaign}>
-                <TextField label="Campaign Title" fullWidth required value={campTitle} onChange={(e) => setCampTitle(e.target.value)} sx={{ mb: 2 }} />
-                <TextField label="Description / Details" multiline rows={3} fullWidth required value={campDesc} onChange={(e) => setCampDesc(e.target.value)} sx={{ mb: 2 }} />
-                <TextField select label="Campaign Type" fullWidth value={campType} onChange={(e) => setCampType(e.target.value)} sx={{ mb: 2 }}>
-                  <MenuItem value="blood_camp">Blood Donation Camp</MenuItem>
-                  <MenuItem value="vaccination">Vaccination Drive</MenuItem>
-                  <MenuItem value="health_camp">Free Health Checkup Camp</MenuItem>
-                  <MenuItem value="awareness">Awareness Drive</MenuItem>
-                </TextField>
-                <TextField label="Date" type="date" InputLabelProps={{ shrink: true }} fullWidth required value={campDate} onChange={(e) => setCampDate(e.target.value)} sx={{ mb: 2 }} />
-                <TextField label="Time Range (e.g. 10AM-4PM)" fullWidth required value={campTime} onChange={(e) => setCampTime(e.target.value)} sx={{ mb: 2 }} />
-                <TextField label="Venue Address" fullWidth required value={campVenue} onChange={(e) => setCampVenue(e.target.value)} sx={{ mb: 3 }} />
-                <Button type="submit" variant="contained" fullWidth sx={{ fontWeight: 'bold' }}>Publish Drive</Button>
-              </form>
-            </Paper>
-          </Grid>
-        </Grid>
+        <HospitalCampaignTab
+          campTitle={campTitle} setCampTitle={setCampTitle}
+          campDesc={campDesc} setCampDesc={setCampDesc}
+          campType={campType} setCampType={setCampType}
+          campDate={campDate} setCampDate={setCampDate}
+          campTime={campTime} setCampTime={setCampTime}
+          campVenue={campVenue} setCampVenue={setCampVenue}
+          handleCreateCampaign={handleCreateCampaign}
+        />
       )}
     </Container>
   );

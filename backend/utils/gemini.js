@@ -2,11 +2,9 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Hospital = require('../models/Hospital');
 const Doctor = require('../models/Doctor');
 
-// Helper fallback for local responses when GEMINI_API_KEY is not defined
 const fallbackAIChat = async (message, context = {}) => {
   const msg = message.toLowerCase();
   
-  // 1. Emergency Symptom Check
   const emergencyKeywords = ['chest pain', 'breathing difficulty', 'difficulty breathing', 'unconscious', 'severe bleeding', 'stroke', 'paralysis', 'severe allergic reaction', 'heart attack', 'choking'];
   if (emergencyKeywords.some(keyword => msg.includes(keyword))) {
     return {
@@ -15,7 +13,6 @@ const fallbackAIChat = async (message, context = {}) => {
     };
   }
 
-  // 2. Hospital / ICU / Resource Discovery Request
   if (msg.includes('icu') || msg.includes('bed') || msg.includes('blood') || msg.includes('ventilator') || msg.includes('hospital')) {
     try {
       const hospitals = await Hospital.find({ verifiedStatus: 'verified' }).limit(3);
@@ -31,8 +28,7 @@ const fallbackAIChat = async (message, context = {}) => {
       // pass
     }
   }
-
-  // 3. Appointment / Doctor scheduling
+  
   if (msg.includes('appointment') || msg.includes('doctor') || msg.includes('dermatologist') || msg.includes('cardiologist') || msg.includes('pediatrician')) {
     try {
       let spec = 'General Medicine';
@@ -50,11 +46,8 @@ const fallbackAIChat = async (message, context = {}) => {
         return { reply: response, suggestAppointment: true };
       }
     } catch (err) {
-      // pass
     }
   }
-
-  // 4. Minor Condition Self-Care Guidance
   if (msg.includes('fever') || msg.includes('cold') || msg.includes('cough') || msg.includes('headache')) {
     return {
       reply: `For minor symptoms like a mild cold, cough, or simple headache:\n- Ensure plenty of rest and stay hydrated.\n- Warm fluids like tea, broth, or water can help soothe throat irritation.\n- Commonly available OTC (Over-The-Counter) remedies like saline nasal sprays or generic throat lozenges might provide temporary relief.\n\n⚠️ DISCLAIMER: This information is for general educational purposes. I do not prescribe medicines. If symptoms persist for more than 48 hours or worsen, please consult a qualified healthcare professional.`,
@@ -62,7 +55,7 @@ const fallbackAIChat = async (message, context = {}) => {
     };
   }
 
-  // 5. General FAQ
+ 
   return {
     reply: `Hello! I am **CareAI**, your medical coordination assistant. I can help you:
 1. Identify emergency warning signs (chest pain, breathing difficulties).
@@ -82,11 +75,9 @@ const getAIResponse = async (prompt, chatHistory = []) => {
   }
 
   try {
-    // If Gemini key is set, configure GoogleGenerativeAI
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
-    // Build medical instruction wrapper
     const systemInstruction = `You are CareAI, a professional and helpful healthcare coordination assistant for the SwasthyaSetu app.
     Your capabilities:
     1. Help users discover hospitals, available beds, ICU, and blood units.
@@ -114,7 +105,6 @@ const getAIResponse = async (prompt, chatHistory = []) => {
     const result = await chat.sendMessage(prompt);
     const responseText = result.response.text();
 
-    // Check if the response hints at an emergency
     const lowerText = responseText.toLowerCase();
     const isEmergency = lowerText.includes('emergency') || lowerText.includes('critical') || lowerText.includes('er ') || lowerText.includes('red button');
 

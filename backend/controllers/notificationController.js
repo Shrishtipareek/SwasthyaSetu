@@ -1,22 +1,20 @@
 const Notification = require('../models/Notification');
 
-// @desc    Get user notifications
-// @route   GET /api/notifications
-// @access  Private
 const getNotifications = async (req, res) => {
   try {
+    const { page = 1, limit = 30 } = req.query;
+    const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(100, parseInt(limit));
+
     const notifications = await Notification.find({ recipient: req.user._id })
       .sort({ createdAt: -1 })
-      .limit(30);
+      .skip(skip)
+      .limit(Math.min(100, parseInt(limit)));
     res.json(notifications);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Mark a notification as read
-// @route   PUT /api/notifications/:id/read
-// @access  Private
 const markAsRead = async (req, res) => {
   try {
     const notification = await Notification.findById(req.params.id);

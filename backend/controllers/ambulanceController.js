@@ -2,12 +2,15 @@ const Ambulance = require('../models/Ambulance');
 const Hospital = require('../models/Hospital');
 const Notification = require('../models/Notification');
 
-// @desc    Register a new ambulance
-// @route   POST /api/ambulances
-// @access  Private (Hospital admin only)
+const VALID_AMBULANCE_STATUSES = ['available', 'dispatched', 'en_route', 'busy', 'maintenance'];
+
 const registerAmbulance = async (req, res) => {
   try {
     const { licensePlate, driverName, driverContact, location } = req.body;
+
+    if (!licensePlate || !driverName) {
+      return res.status(400).json({ message: 'License plate and driver name are required.' });
+    }
 
     const hospital = await Hospital.findOne({ user: req.user._id });
     if (!hospital) {
@@ -28,9 +31,6 @@ const registerAmbulance = async (req, res) => {
   }
 };
 
-// @desc    Get ambulances (all or hospital specific)
-// @route   GET /api/ambulances
-// @access  Public
 const getAmbulances = async (req, res) => {
   try {
     const { hospitalId, status } = req.query;
@@ -50,9 +50,6 @@ const getAmbulances = async (req, res) => {
   }
 };
 
-// @desc    Update ambulance status or location
-// @route   PUT /api/ambulances/:id
-// @access  Private (Hospital admin only)
 const updateAmbulance = async (req, res) => {
   try {
     const ambulance = await Ambulance.findById(req.params.id);
@@ -60,13 +57,17 @@ const updateAmbulance = async (req, res) => {
       return res.status(404).json({ message: 'Ambulance not found' });
     }
 
-    // Verify hospital owns the ambulance
+   
     const hospital = await Hospital.findOne({ user: req.user._id });
     if (!hospital || ambulance.hospital.toString() !== hospital._id.toString()) {
       return res.status(401).json({ message: 'Not authorized to manage this ambulance' });
     }
 
     const { status, driverName, driverContact, location } = req.body;
+
+    if (status && !VALID_AMBULANCE_STATUSES.includes(status)) {
+      return res.status(400).json({ message: `Invalid status. Must be one of: ${VALID_AMBULANCE_STATUSES.join(', ')}` });
+    }
 
     if (status) ambulance.status = status;
     if (driverName) ambulance.driverName = driverName;
@@ -75,7 +76,6 @@ const updateAmbulance = async (req, res) => {
 
     await ambulance.save();
 
-    // Trigger Socket.io real-time update
     if (req.app.get('socketio')) {
       const io = req.app.get('socketio');
       io.emit('ambulance_update', ambulance);

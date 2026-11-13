@@ -14,7 +14,12 @@ import {
   CardContent,
   Alert,
   IconButton,
-  Chip
+  Chip,
+  FormControlLabel,
+  Switch,
+  MenuItem,
+  Select,
+  FormControl
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -43,7 +48,18 @@ const EmergencyModal = ({ open, onClose }) => {
   const [_loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [userLocation, setUserLocation] = useState({ lat: 28.6139, lng: 77.2090 });
+  const [locationNotice, setLocationNotice] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+  const [useManualLocation, setUseManualLocation] = useState(false);
+  const [selectedArea, setSelectedArea] = useState('central_delhi');
+
+  const areaCoordinates = {
+    central_delhi: { name: 'Central Delhi (Connaught Place / AIIMS)', lat: 28.6139, lng: 77.2090 },
+    south_delhi: { name: 'South Delhi (Saket / Max Super Speciality)', lat: 28.5284, lng: 77.2198 },
+    sarita_vihar: { name: 'South-East Delhi (Sarita Vihar / Apollo)', lat: 28.5361, lng: 77.2882 },
+    east_delhi: { name: 'East Delhi (Mayur Vihar / Preet Vihar)', lat: 28.6280, lng: 77.2789 },
+    north_delhi: { name: 'North Delhi (Civil Lines / Rohini)', lat: 28.6890, lng: 77.2060 }
+  };
 
   const emergencyOptions = [
     { label: 'ICU Bed', value: 'icu', color: '#dc2626' },
@@ -60,6 +76,14 @@ const EmergencyModal = ({ open, onClose }) => {
     setStep(2);
     setLoading(true);
     setErrorMsg('');
+    setLocationNotice('');
+
+    if (useManualLocation) {
+      const selected = areaCoordinates[selectedArea] || areaCoordinates.central_delhi;
+      setUserLocation(selected);
+      setLocationNotice(`Using manual location selection: ${selected.name}`);
+      return submitEmergency(type, selected);
+    }
 
     // Step 1: Detect user location
     if (navigator.geolocation) {
@@ -74,15 +98,16 @@ const EmergencyModal = ({ open, onClose }) => {
         },
         (error) => {
           console.warn('Geolocation blocked or unavailable, using Delhi coordinates fallback.', error.message);
-          // Fallback coordinates (Delhi)
-          const fallbackLoc = { lat: 28.6129, lng: 77.2290 };
+          setLocationNotice('GPS access unavailable; using regional reference coordinates.');
+          const fallbackLoc = areaCoordinates[selectedArea] || { lat: 28.6129, lng: 77.2290 };
           setUserLocation(fallbackLoc);
           submitEmergency(type, fallbackLoc);
         },
         { timeout: 8000 }
       );
     } else {
-      const fallbackLoc = { lat: 28.6129, lng: 77.2290 };
+      setLocationNotice('Browser geolocation unsupported; using regional coordinates.');
+      const fallbackLoc = areaCoordinates[selectedArea] || { lat: 28.6129, lng: 77.2290 };
       setUserLocation(fallbackLoc);
       submitEmergency(type, fallbackLoc);
     }
@@ -145,9 +170,37 @@ const EmergencyModal = ({ open, onClose }) => {
             <Typography variant="h5" fontWeight="bold" gutterBottom color="#1e293b">
               WHAT DO YOU NEED?
             </Typography>
-            <Typography variant="body2" color="textSecondary" sx={{ mb: 4 }}>
+            <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
               Select your required emergency resource to find nearby hospitals with live available stock.
             </Typography>
+
+            <Box sx={{ mb: 3, p: 2, bgcolor: '#ffffff', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'center', gap: 2 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={useManualLocation}
+                    onChange={(e) => setUseManualLocation(e.target.checked)}
+                    color="primary"
+                  />
+                }
+                label={<Typography variant="body2" fontWeight="600">Manual Location Selector</Typography>}
+              />
+
+              {useManualLocation && (
+                <FormControl size="small" sx={{ minWidth: 260 }}>
+                  <Select
+                    value={selectedArea}
+                    onChange={(e) => setSelectedArea(e.target.value)}
+                    sx={{ borderRadius: '8px', fontSize: '0.88rem' }}
+                  >
+                    {Object.entries(areaCoordinates).map(([key, val]) => (
+                      <MenuItem key={key} value={key}>{val.name}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            </Box>
+
             <Grid container spacing={2} justifyContent="center">
               {emergencyOptions.map((opt) => (
                 <Grid item xs={6} sm={4} key={opt.value}>
@@ -204,6 +257,12 @@ const EmergencyModal = ({ open, onClose }) => {
                     Recommended Hospitals
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
+                  
+                  {locationNotice && (
+                    <Alert severity="info" sx={{ mb: 2, py: 0.5, borderRadius: '8px', fontSize: '0.85rem' }}>
+                      {locationNotice}
+                    </Alert>
+                  )}
                   
                   <Box display="flex" flexDirection="column" gap={2} sx={{ maxHeight: '420px', overflowY: 'auto', pr: 1 }}>
                     {results?.recommendedHospitals?.map((rh, index) => (

@@ -19,7 +19,7 @@ const MedicalDocumentSchema = new mongoose.Schema({
     type: String,
   },
   fileUrl: {
-    type: String, // Simulated document URL or base64 representation
+    type: String, 
     required: true,
   },
   uploadedByHospital: {

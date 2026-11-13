@@ -43,18 +43,22 @@ const LandingPage = ({ onEmergencyClick: _onEmergencyClick }) => {
       >
         {/* Blurred Medical Team Background Image */}
         <Box
+          component="img"
+          src={heroImg}
+          alt="SwasthyaSetu Medical Team"
+          decoding="async"
           sx={{
             position: 'absolute',
             top: 0,
             left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundImage: `url(${heroImg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center 20%',
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center 20%',
             filter: 'blur(2px)',
             transform: 'scale(1.03)',
-            zIndex: 0
+            zIndex: 0,
+            pointerEvents: 'none'
           }}
         />
 
@@ -204,18 +208,23 @@ const LandingPage = ({ onEmergencyClick: _onEmergencyClick }) => {
       >
         {/* Visible Blurred Background Image */}
         <Box
+          component="img"
+          src="/medicine_bg.jpg"
+          alt="Healthcare Network"
+          loading="lazy"
+          decoding="async"
           sx={{
             position: 'absolute',
             top: 0,
             left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundImage: 'url(/medicine_bg.jpg)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+            objectPosition: 'center',
             filter: 'blur(12px)',
             transform: 'scale(1.08)',
-            zIndex: 0
+            zIndex: 0,
+            pointerEvents: 'none'
           }}
         />
 

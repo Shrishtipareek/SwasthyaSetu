@@ -4,28 +4,33 @@ const Doctor = require('../models/Doctor');
 const Appointment = require('../models/Appointment');
 const Notification = require('../models/Notification');
 
-// @desc    Get all hospitals (pending or all) for superadmin view
-// @route   GET /api/admin/hospitals
-// @access  Private (Admin/Superadmin only)
 const getAllHospitalsForAdmin = async (req, res) => {
   try {
-    const hospitals = await Hospital.find()
+    const { page = 1, limit = 50, status } = req.query;
+    const query = {};
+    if (status) {
+      query.verifiedStatus = status;
+    }
+
+    const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(100, parseInt(limit));
+
+    const hospitals = await Hospital.find(query)
       .populate('user', 'name email phone')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Math.min(100, parseInt(limit)));
+
     res.json(hospitals);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-// @desc    Approve/Verify or Reject a hospital registration
-// @route   PUT /api/admin/hospitals/:id/verify
-// @access  Private (Admin/Superadmin only)
 const verifyHospital = async (req, res) => {
   try {
-    const { status } = req.body; // 'verified' or 'rejected'
-    if (!['verified', 'rejected'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid verification status' });
+    const { status } = req.body;
+    if (!['verified', 'rejected', 'pending'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid verification status. Must be: verified, rejected, or pending' });
     }
 
     const hospital = await Hospital.findById(req.params.id);
@@ -36,12 +41,13 @@ const verifyHospital = async (req, res) => {
     hospital.verifiedStatus = status;
     await hospital.save();
 
-    // Notify hospital user
-    await Notification.create({
-      recipient: hospital.user,
-      message: `Your hospital verification request has been ${status.toUpperCase()} by SwasthyaSetu administrators.`,
-      type: status === 'verified' ? 'info' : 'critical'
-    });
+    if (hospital.user) {
+      await Notification.create({
+        recipient: hospital.user,
+        message: `Your hospital verification request has been ${status.toUpperCase()} by SwasthyaSetu administrators.`,
+        type: status === 'verified' ? 'info' : 'critical'
+      });
+    }
 
     res.json({ message: `Hospital verification status updated to ${status}`, hospital });
   } catch (error) {
@@ -49,9 +55,6 @@ const verifyHospital = async (req, res) => {
   }
 };
 
-// @desc    Get system-wide stats
-// @route   GET /api/admin/stats
-// @access  Private (Admin/Superadmin only)
 const getAdminSystemStats = async (req, res) => {
   try {
     const patientsCount = await User.countDocuments({ role: 'patient' });

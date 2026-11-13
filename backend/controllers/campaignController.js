@@ -1,76 +1,87 @@
 const HealthCampaign = require('../models/HealthCampaign');
 const Hospital = require('../models/Hospital');
+const User = require('../models/User');
 
-// @desc    Create a new health campaign / drive
+// @desc    Create a new health campaign drive
 // @route   POST /api/campaigns
-// @access  Private (Hospital admin only)
+// @access  Private (Hospital / Admin)
 const createCampaign = async (req, res) => {
   try {
-    const { title, description, type, date, time, venue } = req.body;
+    const { title, description, type, date, time, venue, organizer, status } = req.body;
 
-    const hospital = await Hospital.findOne({ user: req.user._id });
-    if (!hospital) {
-      return res.status(404).json({ message: 'Hospital profile not found' });
+    if (!title || typeof title !== 'string' || title.trim().length === 0) {
+      return res.status(400).json({ message: 'Campaign title is required.' });
+    }
+    if (!date) {
+      return res.status(400).json({ message: 'Campaign date is required.' });
+    }
+    if (!venue || typeof venue !== 'string' || venue.trim().length === 0) {
+      return res.status(400).json({ message: 'Campaign venue is required.' });
+    }
+
+    const userId = req.user._id || req.user.id;
+    let hospitalDoc = await Hospital.findOne({ user: userId });
+
+    let campaignOrganizer = organizer ? organizer.trim() : '';
+    if (!campaignOrganizer) {
+      if (hospitalDoc && hospitalDoc.name) {
+        campaignOrganizer = hospitalDoc.name;
+      } else if (req.user && req.user.name) {
+        campaignOrganizer = req.user.name;
+      } else {
+        campaignOrganizer = 'SwasthyaSetu Healthcare Network';
+      }
     }
 
     const campaign = await HealthCampaign.create({
-      hospital: hospital._id,
-      title,
-      description,
-      type,
+      hospital: hospitalDoc ? hospitalDoc._id : null,
+      organizer: campaignOrganizer,
+      title: title.trim(),
+      description: description ? description.trim() : 'Public health initiative.',
+      type: type || 'awareness',
       date,
-      time,
-      venue
+      time: time || '09:00 AM - 05:00 PM',
+      venue: venue.trim(),
+      status: status || 'active'
     });
 
-    res.status(201).json(campaign);
+    res.status(201).json({ message: 'Campaign drive published successfully', campaign });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-const seedCampaignsFallback = [
-  {
-    _id: "65d000000000000000000091",
-    title: "Mega Blood Donation Camp",
-    description: "Join us for our annual blood donation camp to save lives in emergency situations. Free health screening checks for all donors.",
-    type: "blood_camp",
-    date: "2026-09-15",
-    time: "09:00 AM - 05:00 PM",
-    venue: "AIIMS Main Auditorium Area, New Delhi",
-    hospital: { name: "AIIMS New Delhi" },
-    registeredUsers: []
-  },
-  {
-    _id: "65d000000000000000000092",
-    title: "Free Vaccination Drive",
-    description: "Hepatitis B and Influenza vaccination drive for senior citizens and young children.",
-    type: "vaccination",
-    date: "2026-10-10",
-    time: "10:00 AM - 03:00 PM",
-    venue: "Apollo Hospital Complex, New Delhi",
-    hospital: { name: "Apollo Hospital Delhi" },
-    registeredUsers: []
-  }
-];
-
-// @desc    Get all campaigns
+// @desc    Get all public health campaigns
 // @route   GET /api/campaigns
 // @access  Public
 const getCampaigns = async (req, res) => {
   try {
-    const campaigns = await HealthCampaign.find()
-      .populate('hospital', 'name contactPhone address')
-      .sort({ date: 1 });
+    const { page = 1, limit = 50, type, status } = req.query;
+    const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(100, parseInt(limit));
+
+    let query = {};
+    if (type && type !== 'all') {
+      query.type = type;
+    }
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    const campaigns = await HealthCampaign.find(query)
+      .populate('hospital', 'name contactPhone address emergencyPhone')
+      .sort({ date: 1 })
+      .skip(skip)
+      .limit(Math.min(100, parseInt(limit)));
+
     res.json(campaigns);
   } catch (error) {
-    res.json(seedCampaignsFallback);
+    res.status(500).json({ message: error.message || 'Database error querying campaigns' });
   }
 };
 
-// @desc    Register a patient/user for a campaign
+// @desc    Register a patient user for a campaign drive
 // @route   POST /api/campaigns/:id/register
-// @access  Private (Patient/User only)
+// @access  Private (Patient / User)
 const registerForCampaign = async (req, res) => {
   try {
     const campaign = await HealthCampaign.findById(req.params.id);
@@ -78,14 +89,20 @@ const registerForCampaign = async (req, res) => {
       return res.status(404).json({ message: 'Campaign not found' });
     }
 
-    if (campaign.registeredUsers.includes(req.user._id)) {
-      return res.status(400).json({ message: 'You have already registered for this campaign.' });
+    const userId = req.user._id || req.user.id;
+    const alreadyRegistered = (campaign.registeredUsers || []).some(
+      u => String(u) === String(userId)
+    );
+
+    if (alreadyRegistered) {
+      return res.status(400).json({ message: 'You are already registered for this campaign.' });
     }
 
-    campaign.registeredUsers.push(req.user._id);
+    campaign.registeredUsers = campaign.registeredUsers || [];
+    campaign.registeredUsers.push(userId);
     await campaign.save();
 
-    res.json({ message: 'Registered successfully', campaign });
+    res.json({ message: 'Registered for campaign successfully', campaign });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

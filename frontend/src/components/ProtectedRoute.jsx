@@ -19,7 +19,12 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+    if (user.role === 'hospital') {
+      return <Navigate to="/hospital-dashboard" replace />;
+    } else if (user.role === 'admin' || user.role === 'superadmin') {
+      return <Navigate to="/admin-dashboard" replace />;
+    }
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

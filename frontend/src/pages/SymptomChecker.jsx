@@ -105,6 +105,21 @@ const SymptomChecker = ({ onEmergencyClick }) => {
       <Grid container spacing={4}>
         {/* Input Column */}
         <Grid item xs={12} md={assessment ? 5 : 8} sx={{ mx: assessment ? 0 : 'auto', transition: 'all 0.3s ease' }}>
+          <Alert
+            severity="warning"
+            sx={{
+              mb: 3,
+              borderRadius: '12px',
+              border: '1px solid #FDE68A',
+              backgroundColor: '#FFFBEB',
+              color: '#92400E',
+              fontWeight: 500,
+              '& .MuiAlert-icon': { color: '#D97706' }
+            }}
+          >
+            <strong>Medical Disclaimer:</strong> CareAI provides preliminary educational guidance only and does NOT replace professional medical diagnosis or clinical consultation. In severe emergencies, seek urgent medical help immediately.
+          </Alert>
+
           <Card
             elevation={0}
             sx={{
@@ -150,7 +165,9 @@ const SymptomChecker = ({ onEmergencyClick }) => {
               rows={4}
               placeholder="e.g. I have had a temperature of 101°F for two days with severe sore throat and body ache..."
               value={symptomText}
-              onChange={(e) => setSymptomText(e.target.value)}
+              onChange={(e) => setSymptomText(e.target.value.slice(0, 1000))}
+              inputProps={{ maxLength: 1000 }}
+              helperText={`${symptomText.length}/1000 characters`}
               sx={{
                 mb: 2.5,
                 '& .MuiOutlinedInput-root': {

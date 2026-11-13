@@ -9,19 +9,30 @@ export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
 
   useEffect(() => {
-    const newSocket = io('http://localhost:5000', {
-      transports: ['websocket'],
-      upgrade: false
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || (
+      import.meta.env.VITE_API_URL 
+        ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') 
+        : 'http://localhost:5000'
+    );
+
+    const token = localStorage.getItem('token');
+    const newSocket = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      auth: { token: token || '' },
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000
     });
 
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      console.log('Connected to SwasthyaSetu real-time socket network');
+      console.log('Connected to SwasthyaSetu real-time socket network:', newSocket.id);
     });
 
-    return () => newSocket.close();
-  }, []);
+    return () => {
+      newSocket.close();
+    };
+  }, [user?._id]);
 
   useEffect(() => {
     if (socket && user) {

@@ -56,7 +56,7 @@ const HospitalSchema = new mongoose.Schema({
     enum: ['pending', 'verified', 'rejected'],
     default: 'pending',
   },
-  // Real-Time Bed Resources
+ 
   beds: {
     total: { type: Number, default: 50 },
     occupied: { type: Number, default: 20 },
@@ -68,7 +68,7 @@ const HospitalSchema = new mongoose.Schema({
     ventilatorsTotal: { type: Number, default: 5 },
     ventilatorsAvailable: { type: Number, default: 3 },
   },
-  // Real-Time Blood Inventory
+ 
   bloodInventory: {
     'Ap': { availableUnits: { type: Number, default: 10 }, lastUpdated: { type: Date, default: Date.now } },
     'An': { availableUnits: { type: Number, default: 5 }, lastUpdated: { type: Date, default: Date.now } },
@@ -79,14 +79,14 @@ const HospitalSchema = new mongoose.Schema({
     'ABp': { availableUnits: { type: Number, default: 5 }, lastUpdated: { type: Date, default: Date.now } },
     'ABn': { availableUnits: { type: Number, default: 2 }, lastUpdated: { type: Date, default: Date.now } },
   },
-  // Organs Availability (Anonymized)
+
   organs: {
     kidney: { available: { type: Number, default: 0 }, lastUpdated: { type: Date, default: Date.now } },
     liver: { available: { type: Number, default: 0 }, lastUpdated: { type: Date, default: Date.now } },
     heart: { available: { type: Number, default: 0 }, lastUpdated: { type: Date, default: Date.now } },
     lungs: { available: { type: Number, default: 0 }, lastUpdated: { type: Date, default: Date.now } },
   },
-  // Critical Low Resource Threshold Configurations
+ 
   thresholds: {
     bloodLow: { type: Number, default: 5 },
     bloodCritical: { type: Number, default: 2 },
@@ -98,5 +98,7 @@ const HospitalSchema = new mongoose.Schema({
 HospitalSchema.index({ name: 1 });
 HospitalSchema.index({ 'location': '2d' });
 HospitalSchema.index({ verifiedStatus: 1 });
+HospitalSchema.index({ 'location.lat': 1, 'location.lng': 1 });
+HospitalSchema.index({ user: 1 });
 
 module.exports = mongoose.model('Hospital', HospitalSchema);

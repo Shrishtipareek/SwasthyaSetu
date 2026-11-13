@@ -15,6 +15,7 @@ const UserSchema = new mongoose.Schema({
   password: {
     type: String,
     required: true,
+    select: false,
   },
   role: {
     type: String,
@@ -26,10 +27,10 @@ const UserSchema = new mongoose.Schema({
     required: true,
   },
   location: {
-    lat: { type: Number, default: 28.6139 }, // Default to New Delhi coordinates
+    lat: { type: Number, default: 28.6139 },
     lng: { type: Number, default: 77.2090 }
   },
-  // Patient medical info fields
+  
   medicalInfo: {
     dob: { type: Date },
     gender: { type: String },
@@ -39,14 +40,10 @@ const UserSchema = new mongoose.Schema({
     emergencyContactName: { type: String },
     emergencyContactPhone: { type: String },
     emergencyContactRelation: { type: String }
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now,
   }
 }, { timestamps: true });
 
-UserSchema.index({ 'location': '2d' }); // index location for map searches
+UserSchema.index({ 'location': '2d' }); 
 
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();

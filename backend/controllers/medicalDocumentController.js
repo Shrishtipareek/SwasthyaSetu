@@ -1,12 +1,13 @@
 const MedicalDocument = require('../models/MedicalDocument');
 const Hospital = require('../models/Hospital');
 
-// @desc    Upload / Register a medical document
-// @route   POST /api/documents
-// @access  Private (Patient / Hospital admin authorized)
 const uploadDocument = async (req, res) => {
   try {
     const { title, type, fileUrl, notes, patientId } = req.body;
+
+    if (!title || !type) {
+      return res.status(400).json({ message: 'Document title and type are required.' });
+    }
 
     let targetPatientId = req.user._id;
     let uploadedByHospital = null;
@@ -60,14 +61,19 @@ const getDocuments = async (req, res) => {
           // allow view if the document was explicitly shared (for simplicity, we return documents where patient's query matches)
         ]
       };
+    }
       
-      const { patientId } = req.query;
-      if (patientId) {
-        query.patient = patientId;
-      }
+    const { patientId, page = 1, limit = 50 } = req.query;
+    if (patientId && req.user.role === 'hospital') {
+      query.patient = patientId;
     }
 
-    const documents = await MedicalDocument.find(query).sort({ createdAt: -1 });
+    const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(100, parseInt(limit));
+
+    const documents = await MedicalDocument.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(Math.min(100, parseInt(limit)));
     res.json(documents);
   } catch (error) {
     res.status(500).json({ message: error.message });

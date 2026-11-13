@@ -17,7 +17,7 @@ const AppointmentSchema = new mongoose.Schema({
     required: true,
   },
   date: {
-    type: String, // format YYYY-MM-DD
+    type: String, 
     required: true,
   },
   timeSlot: {
@@ -44,6 +44,6 @@ const AppointmentSchema = new mongoose.Schema({
 
 AppointmentSchema.index({ patient: 1 });
 AppointmentSchema.index({ hospital: 1 });
-AppointmentSchema.index({ doctor: 1, date: 1, timeSlot: 1 }, { unique: true }); // Prevent double bookings
+AppointmentSchema.index({ doctor: 1, date: 1, timeSlot: 1 }, { unique: true, partialFilterExpression: { status: 'upcoming' } }); 
 
 module.exports = mongoose.model('Appointment', AppointmentSchema);

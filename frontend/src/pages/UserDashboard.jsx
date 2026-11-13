@@ -20,7 +20,13 @@ import {
   IconButton,
   List,
   ListItem,
-  ListItemText
+  ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Skeleton
 } from '@mui/material';
 import {
   CalendarMonth,
@@ -31,13 +37,16 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
-import { appointmentAPI } from '../services/api';
+import { appointmentAPI, medicalDocumentAPI, bloodDonorAPI } from '../services/api';
 
 const UserDashboard = ({ onEmergencyClick }) => {
   const { user, updateProfile } = useAuth();
   const [appointments, setAppointments] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [isDonor, setIsDonor] = useState(false);
+  const [loadingData, setLoadingData] = useState(true);
+  const [cancellingAppt, setCancellingAppt] = useState(null);
+  const [deletingDoc, setDeletingDoc] = useState(null);
 
   // Profile forms
   const [allergies, setAllergies] = useState(user?.medicalInfo?.allergies?.join(', ') || '');
@@ -59,7 +68,12 @@ const UserDashboard = ({ onEmergencyClick }) => {
   // Blood donor form
   const [donorArea, setDonorArea] = useState('');
   const [donorPref, setDonorPref] = useState('Phone');
+  const [donorBloodGroup, setDonorBloodGroup] = useState(user?.medicalInfo?.bloodGroup || 'O+');
   const [donorSuccess, setDonorSuccess] = useState('');
+  const [donorError, setDonorError] = useState('');
+  const [donorLoading, setDonorLoading] = useState(false);
+  const [isEditingDonor, setIsEditingDonor] = useState(false);
+  const [confirmDeleteDonor, setConfirmDeleteDonor] = useState(false);
 
   const fetchDashboardData = useCallback(async () => {
     try {
@@ -72,43 +86,40 @@ const UserDashboard = ({ onEmergencyClick }) => {
 
   const fetchDocs = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const response = await fetch('http://localhost:5000/api/documents', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          setDocuments(data);
-        }
-      }
+      const { data } = await medicalDocumentAPI.getDocuments();
+      setDocuments(data || []);
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching documents:', err.message);
     }
   }, []);
 
   const fetchDonorStatus = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (token) {
-        const response = await fetch('http://localhost:5000/api/blood-donors', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const data = await response.json();
-          const registered = data.some(d => d.user?._id === user?._id || d.user === user?._id);
-          setIsDonor(registered);
-        }
+      const { data } = await bloodDonorAPI.getMyProfile();
+      if (data?.isRegistered && data.donor) {
+        setIsDonor(true);
+        if (data.donor.bloodGroup) setDonorBloodGroup(data.donor.bloodGroup);
+        if (data.donor.cityArea) setDonorArea(data.donor.cityArea);
+        if (data.donor.contactPreference) setDonorPref(data.donor.contactPreference);
+      } else {
+        setIsDonor(false);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching donor status:', err.message);
     }
-  }, [user?._id]);
+  }, []);
 
   useEffect(() => {
-    fetchDashboardData();
-    fetchDocs();
-    fetchDonorStatus();
+    const loadAll = async () => {
+      setLoadingData(true);
+      await Promise.allSettled([
+        fetchDashboardData(),
+        fetchDocs(),
+        fetchDonorStatus()
+      ]);
+      setLoadingData(false);
+    };
+    loadAll();
   }, [user, fetchDashboardData, fetchDocs, fetchDonorStatus]);
 
   const handleUpdateProfile = async (e) => {
@@ -134,76 +145,89 @@ const UserDashboard = ({ onEmergencyClick }) => {
     e.preventDefault();
     setDocSuccess('');
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/documents', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          title: docTitle,
-          type: docType,
-          notes: docNotes,
-          fileUrl: docFileUrl
-        })
+      await medicalDocumentAPI.upload({
+        title: docTitle,
+        type: docType,
+        notes: docNotes,
+        fileUrl: docFileUrl
       });
-      if (response.ok) {
-        setDocTitle('');
-        setDocNotes('');
-        setDocSuccess('Document added successfully!');
-        fetchDocs();
-      }
+      setDocTitle('');
+      setDocNotes('');
+      setDocSuccess('Document added successfully!');
+      fetchDocs();
     } catch (err) {
-      console.error(err);
+      console.error('Failed to upload document:', err.message);
     }
   };
 
   const handleDeleteDoc = async (id) => {
     try {
-      const token = localStorage.getItem('token');
-      await fetch(`http://localhost:5000/api/documents/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      await medicalDocumentAPI.delete(id);
       fetchDocs();
     } catch (err) {
-      console.error(err);
+      console.error('Failed to delete document:', err.message);
     }
   };
 
-  const handleCancelAppt = async (id) => {
+  const handleConfirmDeleteDoc = async () => {
+    if (!deletingDoc) return;
     try {
-      await appointmentAPI.cancel(id);
+      await medicalDocumentAPI.delete(deletingDoc._id);
+      setDeletingDoc(null);
+      fetchDocs();
+    } catch (err) {
+      console.error('Failed to delete document:', err.message);
+    }
+  };
+
+  const handleConfirmCancelAppt = async () => {
+    if (!cancellingAppt) return;
+    try {
+      await appointmentAPI.cancel(cancellingAppt._id);
+      setCancellingAppt(null);
       fetchDashboardData();
     } catch (err) {
-      console.error(err);
+      console.error('Failed to cancel appointment:', err.message);
     }
   };
 
   const handleRegisterDonor = async (e) => {
     e.preventDefault();
     setDonorSuccess('');
+    setDonorError('');
+    setDonorLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:5000/api/blood-donors', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          bloodGroup: user?.medicalInfo?.bloodGroup || 'O+',
-          cityArea: donorArea,
-          contactPreference: donorPref
-        })
+      await bloodDonorAPI.register({
+        bloodGroup: donorBloodGroup,
+        cityArea: donorArea,
+        contactPreference: donorPref
       });
-      if (response.ok) {
-        setIsDonor(true);
-        setDonorSuccess('Registered as a voluntary blood donor!');
-      }
+      setIsDonor(true);
+      setIsEditingDonor(false);
+      setDonorSuccess('Successfully registered as a voluntary blood donor!');
+      fetchDonorStatus();
     } catch (err) {
-      console.error(err);
+      console.error('Failed to register donor:', err.message);
+      setDonorError(err.response?.data?.message || 'Failed to register as blood donor.');
+    } finally {
+      setDonorLoading(false);
+    }
+  };
+
+  const handleConfirmRemoveDonor = async () => {
+    setDonorLoading(true);
+    setDonorError('');
+    try {
+      await bloodDonorAPI.remove();
+      setIsDonor(false);
+      setIsEditingDonor(false);
+      setConfirmDeleteDonor(false);
+      setDonorSuccess('Voluntary blood donor registration removed.');
+    } catch (err) {
+      console.error('Failed to remove donor:', err.message);
+      setDonorError(err.response?.data?.message || 'Failed to remove blood donor registration.');
+    } finally {
+      setDonorLoading(false);
     }
   };
 
@@ -236,7 +260,13 @@ const UserDashboard = ({ onEmergencyClick }) => {
             </Box>
             <Divider sx={{ mb: 2 }} />
 
-            {appointments.filter(a => a.status === 'upcoming').length === 0 ? (
+            {loadingData ? (
+              <Box py={2}>
+                <Skeleton variant="text" width="100%" height={36} />
+                <Skeleton variant="text" width="100%" height={36} />
+                <Skeleton variant="text" width="100%" height={36} />
+              </Box>
+            ) : appointments.filter(a => a.status === 'upcoming').length === 0 ? (
               <Box py={4} textAlign="center">
                 <Typography color="textSecondary">No upcoming appointments scheduled.</Typography>
                 <Button variant="contained" size="small" href="/search-hospitals" sx={{ mt: 2, textTransform: 'capitalize' }}>
@@ -261,7 +291,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
                         <TableCell>{a.hospital?.name}</TableCell>
                         <TableCell>{a.date} | {a.timeSlot}</TableCell>
                         <TableCell>
-                          <Button size="small" color="error" onClick={() => handleCancelAppt(a._id)}>
+                          <Button size="small" color="error" variant="outlined" onClick={() => setCancellingAppt(a)}>
                             Cancel
                           </Button>
                         </TableCell>
@@ -320,7 +350,12 @@ const UserDashboard = ({ onEmergencyClick }) => {
               </Grid>
             </form>
 
-            {documents.length === 0 ? (
+            {loadingData ? (
+              <Box py={2}>
+                <Skeleton variant="text" width="100%" height={36} />
+                <Skeleton variant="text" width="100%" height={36} />
+              </Box>
+            ) : documents.length === 0 ? (
               <Typography variant="body2" color="textSecondary" align="center" py={2}>
                 No medical documents saved in your locker.
               </Typography>
@@ -330,7 +365,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
                   <ListItem
                     key={doc._id}
                     secondaryAction={
-                      <IconButton edge="end" color="error" onClick={() => handleDeleteDoc(doc._id)}>
+                      <IconButton edge="end" color="error" onClick={() => setDeletingDoc(doc)}>
                         <Delete />
                       </IconButton>
                     }
@@ -420,31 +455,84 @@ const UserDashboard = ({ onEmergencyClick }) => {
             </form>
           </Paper>
 
-          {/* Voluntary Blood Donor Registration */}
+          {/* Voluntary Blood Donor Registration & Management */}
           <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '16px', mb: 4 }}>
-            <Box display="flex" alignItems="center" gap={1} mb={2}>
-              <Bloodtype color="error" />
-              <Typography variant="h6" fontWeight="bold" color="#0f172a">
-                Register as Voluntary Blood Donor
-              </Typography>
+            <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <Bloodtype color="error" />
+                <Typography variant="h6" fontWeight="bold" color="#0f172a">
+                  Voluntary Blood Donor
+                </Typography>
+              </Box>
+              {isDonor && !isEditingDonor && (
+                <Chip label="Active Donor" color="success" size="small" sx={{ fontWeight: 'bold' }} />
+              )}
             </Box>
             <Divider sx={{ mb: 2 }} />
 
-            {isDonor ? (
-              <Alert severity="info">
-                You are registered as an active voluntary donor. Local hospitals may contact you during shortages.
-              </Alert>
+            {donorSuccess && <Alert severity="success" sx={{ mb: 2 }}>{donorSuccess}</Alert>}
+            {donorError && <Alert severity="error" sx={{ mb: 2 }}>{donorError}</Alert>}
+
+            {isDonor && !isEditingDonor ? (
+              <Box>
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  You are registered as an active voluntary donor. Local emergency systems and hospitals may contact you during critical shortages.
+                </Alert>
+                <Box sx={{ p: 2, bgcolor: '#F8FAFC', borderRadius: '10px', mb: 2 }}>
+                  <Typography variant="body2" sx={{ mb: 0.8 }}>
+                    Blood Group: <strong>{donorBloodGroup}</strong>
+                  </Typography>
+                  <Typography variant="body2" sx={{ mb: 0.8 }}>
+                    Registered Area: <strong>{donorArea}</strong>
+                  </Typography>
+                  <Typography variant="body2">
+                    Contact Preference: <strong>{donorPref}</strong>
+                  </Typography>
+                </Box>
+                <Box display="flex" gap={1.5}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    fullWidth
+                    onClick={() => setIsEditingDonor(true)}
+                    sx={{ color: '#0F766E', borderColor: '#0F766E', fontWeight: 'bold' }}
+                  >
+                    Edit Details
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    color="error"
+                    fullWidth
+                    onClick={() => setConfirmDeleteDonor(true)}
+                    sx={{ fontWeight: 'bold' }}
+                  >
+                    Deregister
+                  </Button>
+                </Box>
+              </Box>
             ) : (
               <form onSubmit={handleRegisterDonor}>
-                {donorSuccess && <Alert severity="success" sx={{ mb: 2 }}>{donorSuccess}</Alert>}
-                <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                  Your blood group: <strong>{user?.medicalInfo?.bloodGroup || 'Not set'}</strong>
-                </Typography>
+                <TextField
+                  select
+                  label="Blood Group"
+                  fullWidth
+                  size="small"
+                  required
+                  value={donorBloodGroup}
+                  onChange={(e) => setDonorBloodGroup(e.target.value)}
+                  sx={{ mb: 2 }}
+                >
+                  {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map(bg => (
+                    <MenuItem key={bg} value={bg}>{bg}</MenuItem>
+                  ))}
+                </TextField>
                 <TextField
                   label="City / Area"
                   fullWidth
                   size="small"
                   required
+                  placeholder="e.g. Kanpur, Saket, Parel"
                   value={donorArea}
                   onChange={(e) => setDonorArea(e.target.value)}
                   sx={{ mb: 2 }}
@@ -462,14 +550,105 @@ const UserDashboard = ({ onEmergencyClick }) => {
                   <MenuItem value="Email">Email</MenuItem>
                   <MenuItem value="SwasthyaSetu Chat">SwasthyaSetu Chat</MenuItem>
                 </TextField>
-                <Button type="submit" variant="contained" color="error" fullWidth sx={{ fontWeight: 'bold' }}>
-                  Register to Donate Blood
-                </Button>
+                <Box display="flex" gap={1.5}>
+                  {isEditingDonor && (
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      onClick={() => setIsEditingDonor(false)}
+                      disabled={donorLoading}
+                    >
+                      Cancel
+                    </Button>
+                  )}
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    color="error"
+                    fullWidth
+                    disabled={donorLoading}
+                    sx={{ fontWeight: 'bold' }}
+                  >
+                    {donorLoading ? 'Saving...' : isEditingDonor ? 'Save Updates' : 'Register to Donate Blood'}
+                  </Button>
+                </Box>
               </form>
             )}
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Appointment Cancellation Confirmation Dialog */}
+      <Dialog
+        open={Boolean(cancellingAppt)}
+        onClose={() => setCancellingAppt(null)}
+        PaperProps={{ sx: { borderRadius: '12px', p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 'bold', color: '#0F172A' }}>
+          Confirm Appointment Cancellation
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#475569' }}>
+            Are you sure you want to cancel your appointment with <strong>Dr. {cancellingAppt?.doctor?.name}</strong> at <strong>{cancellingAppt?.hospital?.name}</strong> on {cancellingAppt?.date} ({cancellingAppt?.timeSlot})?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ pb: 2, px: 2 }}>
+          <Button onClick={() => setCancellingAppt(null)} sx={{ color: '#64748B' }}>
+            Keep Appointment
+          </Button>
+          <Button onClick={handleConfirmCancelAppt} color="error" variant="contained">
+            Confirm Cancel
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Document Deletion Confirmation Dialog */}
+      <Dialog
+        open={Boolean(deletingDoc)}
+        onClose={() => setDeletingDoc(null)}
+        PaperProps={{ sx: { borderRadius: '12px', p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 'bold', color: '#0F172A' }}>
+          Delete Medical Document
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#475569' }}>
+            Are you sure you want to permanently delete <strong>{deletingDoc?.title}</strong> from your medical record locker? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ pb: 2, px: 2 }}>
+          <Button onClick={() => setDeletingDoc(null)} sx={{ color: '#64748B' }}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmDeleteDoc} color="error" variant="contained">
+            Delete Record
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Deregister Blood Donor Confirmation Dialog */}
+      <Dialog
+        open={confirmDeleteDonor}
+        onClose={() => setConfirmDeleteDonor(false)}
+        PaperProps={{ sx: { borderRadius: '12px', p: 1 } }}
+      >
+        <DialogTitle sx={{ fontWeight: 'bold', color: '#0F172A' }}>
+          Deregister as Blood Donor
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: '#475569' }}>
+            Are you sure you want to remove your voluntary blood donor registration? You will no longer be listed in the community donor directory during emergency blood shortages.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ pb: 2, px: 2 }}>
+          <Button onClick={() => setConfirmDeleteDonor(false)} sx={{ color: '#64748B' }} disabled={donorLoading}>
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmRemoveDonor} color="error" variant="contained" disabled={donorLoading}>
+            {donorLoading ? 'Removing...' : 'Confirm Deregister'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

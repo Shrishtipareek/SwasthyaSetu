@@ -6,13 +6,14 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+.env
 
 node_modules
+
 dist
 dist-ssr
 *.local
 
-# Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -21,4 +22,10 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+*.sw
+documentation.md 
+final_year_project_defence_script.md
+questions.md
+.env
+.env.*
+!.env.example

@@ -1,10 +1,11 @@
 const mongoose = require('mongoose');
 
 const AIConversationSchema = new mongoose.Schema({
+
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    default: null, // Allow guest users
+    required: true,
   },
   messages: [{
     sender: {

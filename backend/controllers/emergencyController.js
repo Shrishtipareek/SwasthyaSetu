@@ -2,66 +2,22 @@ const EmergencyRequest = require('../models/EmergencyRequest');
 const Hospital = require('../models/Hospital');
 const Ambulance = require('../models/Ambulance');
 const Notification = require('../models/Notification');
+const { calculateDistance } = require('../utils/geo');
+const { fallbackHospitals } = require('../utils/fallbackData');
 
-// Helper to calculate distance in km
-const calculateDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
-
-const seedEmergencyHospitalsFallback = [
-  {
-    _id: "65d000000000000000000001",
-    name: "All India Institute of Medical Sciences (AIIMS)",
-    address: "Ansari Nagar, New Delhi",
-    emergencyPhone: "011-26594405",
-    location: { lat: 28.5672, lng: 77.2100 },
-    distance: 1.2,
-    travelTime: "3 mins",
-    icuAvailable: 2,
-    emergencyAvailable: 0
-  },
-  {
-    _id: "65d000000000000000000002",
-    name: "Apollo Hospital Delhi",
-    address: "Sarita Vihar, Delhi Mathura Road, New Delhi",
-    emergencyPhone: "011-26925801",
-    location: { lat: 28.5361, lng: 77.2882 },
-    distance: 3.5,
-    travelTime: "8 mins",
-    icuAvailable: 15,
-    emergencyAvailable: 12
-  },
-  {
-    _id: "65d000000000000000000003",
-    name: "Max Super Speciality Hospital Saket",
-    address: "1-2, Press Enclave Road, Saket, New Delhi",
-    emergencyPhone: "011-40554055",
-    location: { lat: 28.5284, lng: 77.2198 },
-    distance: 4.1,
-    travelTime: "10 mins",
-    icuAvailable: 4,
-    emergencyAvailable: 2
-  }
-];
-
-// @desc    Initiate an emergency request (finds matching hospitals & logs request)
-// @route   POST /api/emergency
-// @access  Public (guests and patients)
 const initiateEmergency = async (req, res) => {
   try {
     const { requestType, location, contactNumber, details } = req.body;
     const patientId = req.user ? req.user._id : null;
 
-    if (!location || !location.lat || !location.lng) {
+    if (!location || location.lat === undefined || location.lng === undefined) {
       return res.status(400).json({ message: 'User location coordinates are required.' });
+    }
+
+    const lat = parseFloat(location.lat);
+    const lng = parseFloat(location.lng);
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({ message: 'Valid latitude (-90 to 90) and longitude (-180 to 180) are required.' });
     }
 
     let hospitals = [];
@@ -78,13 +34,24 @@ const initiateEmergency = async (req, res) => {
           status: 'requested',
           distance: 1.2,
           travelTime: "3 mins",
-          details: details || 'Emergency intake requested'
+          details: details || 'Emergency intake requested (Standby Mode)',
+          isFallback: true
         },
-        recommendedHospitals: seedEmergencyHospitalsFallback
+        recommendedHospitals: fallbackHospitals.map(h => ({
+          _id: h._id,
+          name: h.name,
+          address: h.address,
+          emergencyPhone: h.emergencyPhone,
+          location: h.location,
+          distance: 1.5,
+          travelTime: "4 mins",
+          icuAvailable: h.beds?.icuAvailable || 0,
+          emergencyAvailable: h.beds?.emergencyAvailable || 0,
+          isFallback: true
+        }))
       });
     }
     
-    // Sort hospitals based on distance and resource type availability
     const matches = hospitals.map(h => {
       const distance = calculateDistance(location.lat, location.lng, h.location.lat, h.location.lng);
       
@@ -152,9 +119,21 @@ const initiateEmergency = async (req, res) => {
           status: 'requested',
           distance: 1.2,
           travelTime: "3 mins",
-          details: details || 'Emergency intake requested'
+          details: details || 'Emergency intake requested (Standby Mode)',
+          isFallback: true
         },
-        recommendedHospitals: seedEmergencyHospitalsFallback
+        recommendedHospitals: fallbackHospitals.map(h => ({
+          _id: h._id,
+          name: h.name,
+          address: h.address,
+          emergencyPhone: h.emergencyPhone,
+          location: h.location,
+          distance: 1.5,
+          travelTime: "4 mins",
+          icuAvailable: h.beds?.icuAvailable || 0,
+          emergencyAvailable: h.beds?.emergencyAvailable || 0,
+          isFallback: true
+        }))
       });
     }
 
@@ -219,18 +198,17 @@ const initiateEmergency = async (req, res) => {
       }))
     });
   } catch (error) {
-    res.status(200).json({
-      emergencyRequest: {
-        _id: "emg_" + Date.now(),
-        requestType: req.body.requestType || 'icu',
-        location: req.body.location || { lat: 28.6139, lng: 77.2090 },
-        contactNumber: req.body.contactNumber || '9999999999',
-        status: 'requested',
-        distance: 1.2,
-        travelTime: "3 mins",
-        details: 'Emergency intake requested'
-      },
-      recommendedHospitals: seedEmergencyHospitalsFallback
+    console.error('Critical emergency dispatch error:', error.message);
+    res.status(500).json({
+      message: 'Failed to process automated emergency dispatch. Please call emergency services or hospitals directly.',
+      emergencyHelplines: ['108 (National Ambulance)', '102 (Medical Intake)', '112 (Universal Emergency)'],
+      recommendedHospitals: fallbackHospitals.slice(0, 3).map(h => ({
+        _id: h._id,
+        name: h.name,
+        emergencyPhone: h.emergencyPhone,
+        address: h.address,
+        isFallback: true
+      }))
     });
   }
 };
@@ -290,9 +268,6 @@ const updateEmergencyStatus = async (req, res) => {
   }
 };
 
-// @desc    Get active emergency requests for hospital
-// @route   GET /api/emergency/hospital
-// @access  Private (Hospital admin only)
 const getHospitalEmergencies = async (req, res) => {
   try {
     const hospital = await Hospital.findOne({ user: req.user._id });

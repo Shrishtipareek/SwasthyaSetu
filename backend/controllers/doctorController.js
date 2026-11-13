@@ -1,45 +1,10 @@
 const Doctor = require('../models/Doctor');
 const Hospital = require('../models/Hospital');
+const { fallbackDoctors } = require('../utils/fallbackData');
 
-const seedDoctorsFallback = [
-  {
-    _id: "65d000000000000000000071",
-    name: "Dr. Ramesh Kumar",
-    specialization: "Cardiologist",
-    contact: "9876541001",
-    experience: 12,
-    schedule: { days: ["Monday", "Wednesday", "Friday"], slots: ["09:00 AM", "10:00 AM", "11:00 AM", "02:00 PM"] },
-    status: "available",
-    hospital: { name: "AIIMS New Delhi", address: "Ansari Nagar, New Delhi" }
-  },
-  {
-    _id: "65d000000000000000000072",
-    name: "Dr. Sita Sharma",
-    specialization: "Pediatrician",
-    contact: "9876541002",
-    experience: 8,
-    schedule: { days: ["Tuesday", "Thursday", "Saturday"], slots: ["10:00 AM", "11:00 AM", "03:00 PM"] },
-    status: "available",
-    hospital: { name: "Apollo Hospital Delhi", address: "Sarita Vihar, New Delhi" }
-  },
-  {
-    _id: "65d000000000000000000073",
-    name: "Dr. Ajay Tyagi",
-    specialization: "General Medicine",
-    contact: "9876541003",
-    experience: 15,
-    schedule: { days: ["Monday", "Tuesday", "Wednesday"], slots: ["09:00 AM", "02:00 PM", "04:00 PM"] },
-    status: "available",
-    hospital: { name: "Max Super Speciality Hospital Saket", address: "Saket, New Delhi" }
-  }
-];
-
-// @desc    Get all doctors or doctors for a specific hospital
-// @route   GET /api/doctors
-// @access  Public
 const getDoctors = async (req, res) => {
   try {
-    const { hospitalId, specialization } = req.query;
+    const { hospitalId, specialization, page = 1, limit = 50 } = req.query;
     let query = {};
 
     if (hospitalId) {
@@ -49,19 +14,37 @@ const getDoctors = async (req, res) => {
       query.specialization = { $regex: specialization, $options: 'i' };
     }
 
-    const doctors = await Doctor.find(query).populate('hospital', 'name address contactPhone');
+    const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(100, parseInt(limit));
+
+    const doctors = await Doctor.find(query)
+      .populate('hospital', 'name address contactPhone emergencyPhone')
+      .skip(skip)
+      .limit(Math.min(100, parseInt(limit)));
+
     res.json(doctors);
   } catch (error) {
-    res.json(seedDoctorsFallback);
+    console.warn('DB error in getDoctors, serving fallback doctors:', error.message);
+    const { specialization } = req.query;
+    if (specialization) {
+      const filtered = fallbackDoctors.filter(d => 
+        d.specialization.toLowerCase().includes(specialization.toLowerCase())
+      );
+      return res.json(filtered.length > 0 ? filtered : fallbackDoctors);
+    }
+    res.json(fallbackDoctors);
   }
 };
 
-// @desc    Create/Add a new doctor
-// @route   POST /api/doctors
-// @access  Private (Hospital admin only)
 const addDoctor = async (req, res) => {
   try {
     const { name, specialization, contact, experience, schedule } = req.body;
+
+    if (!name || typeof name !== 'string' || name.trim().length === 0) {
+      return res.status(400).json({ message: 'Doctor name is required.' });
+    }
+    if (!specialization || typeof specialization !== 'string' || specialization.trim().length === 0) {
+      return res.status(400).json({ message: 'Doctor specialization is required.' });
+    }
 
     const hospital = await Hospital.findOne({ user: req.user._id });
     if (!hospital) {
@@ -70,11 +53,14 @@ const addDoctor = async (req, res) => {
 
     const doctor = await Doctor.create({
       hospital: hospital._id,
-      name,
-      specialization,
-      contact,
-      experience,
-      schedule
+      name: name.trim(),
+      specialization: specialization.trim(),
+      contact: contact ? contact.trim() : hospital.contactPhone,
+      experience: Number(experience) || 0,
+      schedule: schedule || {
+        days: ["Monday", "Wednesday", "Friday"],
+        slots: ["09:00 AM", "10:00 AM", "11:00 AM", "02:00 PM"]
+      }
     });
 
     res.status(201).json(doctor);
@@ -83,9 +69,6 @@ const addDoctor = async (req, res) => {
   }
 };
 
-// @desc    Delete/Remove a doctor
-// @route   DELETE /api/doctors/:id
-// @access  Private (Hospital admin only)
 const removeDoctor = async (req, res) => {
   try {
     const hospital = await Hospital.findOne({ user: req.user._id });

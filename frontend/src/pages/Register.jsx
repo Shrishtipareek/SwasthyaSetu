@@ -3,33 +3,19 @@ import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Box,
   Typography,
-  TextField,
-  Button,
   Alert,
   Tabs,
   Tab,
-  MenuItem,
-  Grid,
-  Link,
-  InputAdornment,
-  IconButton
+  Link
 } from '@mui/material';
 import {
   LocalHospital,
-  Visibility,
-  VisibilityOff,
-  EmailOutlined,
-  LockOutlined,
-  ArrowForward,
   PersonOutlined,
-  PhoneOutlined,
-  BadgeOutlined,
-  LocationOnOutlined,
-  CalendarTodayOutlined,
-  MedicalServicesOutlined,
-  CallOutlined
+  BusinessOutlined
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
+import PatientRegisterForm from '../components/auth/PatientRegisterForm';
+import HospitalRegisterForm from '../components/auth/HospitalRegisterForm';
 
 const Register = () => {
   const navigate = useNavigate();
@@ -56,12 +42,35 @@ const Register = () => {
   const [emergencyPhone, setEmergencyPhone] = useState('');
   const [address, setAddress] = useState('');
   const [hospitalType, setHospitalType] = useState('Private');
-  const [lat, setLat] = useState(28.5672); // default
-  const [lng, setLng] = useState(77.2100); // default
+  const [lat, setLat] = useState(28.5672);
+  const [lng, setLng] = useState(77.2100);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
+
+    // Client-side validations (M11)
+    if (!name.trim()) {
+      setErrorMsg('Please enter your full name or hospital name.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setErrorMsg('Please enter a valid email address.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (!phone.trim()) {
+      setErrorMsg('Please provide a valid contact phone number.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -72,18 +81,24 @@ const Register = () => {
           gender,
           bloodGroup
         };
-        await registerUser({ name, email, password, phone, role: 'patient', medicalInfo });
+        await registerUser({ name: name.trim(), email: email.trim(), password, phone: phone.trim(), role: 'patient', medicalInfo });
         navigate('/dashboard');
       } else {
         // Hospital registration
+        if (!licenseNumber.trim() || !address.trim()) {
+          setErrorMsg('License number and address are required for hospital registration.');
+          setLoading(false);
+          return;
+        }
+
         await registerHospital({
-          name,
-          email,
+          name: name.trim(),
+          email: email.trim(),
           password,
-          phone,
-          licenseNumber,
-          emergencyPhone,
-          address,
+          phone: phone.trim(),
+          licenseNumber: licenseNumber.trim(),
+          emergencyPhone: emergencyPhone.trim() || phone.trim(),
+          address: address.trim(),
           hospitalType,
           location: { lat: parseFloat(lat), lng: parseFloat(lng) }
         });
@@ -96,533 +111,169 @@ const Register = () => {
     }
   };
 
-  // Reusable compact input styling matching Login.jsx
   const fieldInputStyle = {
-    borderRadius: '10px',
-    bgcolor: '#F8FAFC',
-    fontSize: '0.88rem',
-    '& .MuiInputBase-input': {
-      py: '8.5px',
-      px: '12px',
-      fontSize: '0.88rem'
+    borderRadius: '8px',
+    backgroundColor: '#F8FAFC',
+    fontSize: '0.9rem',
+    '& fieldset': {
+      borderColor: '#E2E8F0',
     },
-    '& fieldset': { borderColor: '#E2E8F0' },
-    '&:hover fieldset': { borderColor: '#CBD5E1' },
-    '&.Mui-focused fieldset': { borderColor: '#0F766E' }
+    '&:hover fieldset': {
+      borderColor: '#0F766E',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#0F766E',
+    },
   };
 
   return (
     <Box sx={{ display: 'flex', minHeight: 'calc(100vh - 64px)', width: '100%', overflow: 'hidden' }}>
-      {/* Left Side - Form Area */}
+      {/* Left Form Area */}
       <Box
         sx={{
-          width: { xs: '100%', md: '50%' },
-          flex: { md: '0 0 50%' },
+          width: { xs: '100%', md: '55%' },
+          flex: { md: '0 0 55%' },
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
-          p: { xs: 2.5, sm: 4, md: 5 },
+          p: { xs: 3, sm: 6, md: 8 },
           bgcolor: '#FFFFFF',
-          maxHeight: 'calc(100vh - 64px)',
-          overflowY: 'auto'
+          overflowY: 'auto',
+          maxHeight: '100vh'
         }}
       >
-        <Box sx={{ width: '100%', maxWidth: '480px', my: 'auto' }}>
-          {/* Top Header Logo */}
-          <Box component={RouterLink} to="/" sx={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none', mb: 2.5 }}>
-            <Box sx={{ p: 0.8, borderRadius: '10px', bgcolor: 'rgba(220, 38, 38, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1.2 }}>
-              <LocalHospital sx={{ color: '#DC2626', fontSize: 26 }} />
+        <Box sx={{ width: '100%', maxWidth: '520px' }}>
+          {/* Logo Header */}
+          <Box component={RouterLink} to="/" sx={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none', mb: 3 }}>
+            <Box sx={{ p: 1, borderRadius: '10px', bgcolor: 'rgba(220, 38, 38, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', mr: 1.5 }}>
+              <LocalHospital sx={{ color: '#DC2626', fontSize: 28 }} />
             </Box>
-            <Typography variant="h5" fontWeight="900" sx={{ letterSpacing: '-0.03em', color: '#0F2C59' }}>
+            <Typography variant="h5" fontWeight="900" sx={{ letterSpacing: '-0.02em', color: '#0F172A' }}>
               Swasthya<span style={{ color: '#0F766E' }}>Setu</span>
             </Typography>
           </Box>
 
-          <Typography variant="h4" fontWeight="800" color="#0F2C59" sx={{ fontSize: { xs: '1.6rem', sm: '1.9rem' }, mb: 0.8, fontFamily: 'serif, Inter, sans-serif' }}>
-            Create Account
+          <Typography variant="h4" fontWeight="800" sx={{ color: '#0F172A', mb: 1, letterSpacing: '-0.02em', fontSize: { xs: '1.6rem', sm: '2rem' } }}>
+            Create an Account
           </Typography>
-          <Typography variant="body2" color="#64748B" sx={{ mb: 2.5, fontSize: '0.9rem' }}>
-            Join the SwasthyaSetu emergency healthcare network
+          <Typography variant="body2" sx={{ color: '#64748B', mb: 3 }}>
+            Join India's centralized emergency hospital and resource coordination network.
           </Typography>
 
-          {/* Tab Selector */}
+          {/* Role Tabs */}
           <Tabs
             value={tabValue}
-            onChange={(e, val) => { setTabValue(val); setErrorMsg(''); }}
+            onChange={(e, val) => {
+              setTabValue(val);
+              setErrorMsg('');
+            }}
             variant="fullWidth"
             sx={{
-              mb: 2.5,
-              bgcolor: '#F8FAFC',
+              mb: 3,
               p: 0.5,
+              bgcolor: '#F1F5F9',
               borderRadius: '12px',
-              border: '1px solid #E2E8F0',
               '& .MuiTabs-indicator': { display: 'none' },
               '& .MuiTab-root': {
-                fontWeight: '700',
-                textTransform: 'none',
-                fontSize: '0.84rem',
-                color: '#64748B',
+                minHeight: '44px',
                 borderRadius: '8px',
-                py: 0.8,
-                minHeight: '36px',
-                transition: 'all 0.2s ease',
+                textTransform: 'none',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                color: '#64748B',
+                transition: 'all 0.2s',
                 '&.Mui-selected': {
                   color: '#0F766E',
                   bgcolor: '#FFFFFF',
-                  boxShadow: '0 2px 8px rgba(15, 118, 110, 0.12)'
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)'
                 }
               }
             }}
           >
-            <Tab label="Register as Patient / User" />
-            <Tab label="Register as Hospital / Clinic" />
+            <Tab icon={<PersonOutlined sx={{ fontSize: 18 }} />} iconPosition="start" label="Patient / Citizen" />
+            <Tab icon={<BusinessOutlined sx={{ fontSize: 18 }} />} iconPosition="start" label="Hospital Authority" />
           </Tabs>
 
-          {errorMsg && <Alert severity="error" sx={{ mb: 2.5, borderRadius: '10px', py: 0.5 }}>{errorMsg}</Alert>}
+          {errorMsg && (
+            <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }}>
+              {errorMsg}
+            </Alert>
+          )}
 
           <form onSubmit={handleSubmit}>
-            <Grid container spacing={1.5}>
-              {/* Common fields */}
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                  {tabValue === 0 ? 'Full Name *' : 'Hospital Name *'}
-                </Typography>
-                <TextField
-                  fullWidth
-                  required
-                  size="small"
-                  placeholder={tabValue === 0 ? 'e.g. John Doe' : 'e.g. City Central Hospital'}
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  slotProps={{
-                    input: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          {tabValue === 0 ? (
-                            <PersonOutlined sx={{ color: '#94A3B8', fontSize: 18 }} />
-                          ) : (
-                            <LocalHospital sx={{ color: '#94A3B8', fontSize: 18 }} />
-                          )}
-                        </InputAdornment>
-                      ),
-                      sx: fieldInputStyle
-                    }
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                  Email Address *
-                </Typography>
-                <TextField
-                  fullWidth
-                  required
-                  size="small"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  slotProps={{
-                    input: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <EmailOutlined sx={{ color: '#94A3B8', fontSize: 18 }} />
-                        </InputAdornment>
-                      ),
-                      sx: fieldInputStyle
-                    }
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                  Contact Number *
-                </Typography>
-                <TextField
-                  fullWidth
-                  required
-                  size="small"
-                  placeholder="+91 9876543210"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  slotProps={{
-                    input: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <PhoneOutlined sx={{ color: '#94A3B8', fontSize: 18 }} />
-                        </InputAdornment>
-                      ),
-                      sx: fieldInputStyle
-                    }
-                  }}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                  Password *
-                </Typography>
-                <TextField
-                  fullWidth
-                  required
-                  size="small"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  slotProps={{
-                    input: {
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <LockOutlined sx={{ color: '#94A3B8', fontSize: 18 }} />
-                        </InputAdornment>
-                      ),
-                      endAdornment: (
-                        <InputAdornment position="end">
-                          <IconButton onClick={() => setShowPassword(!showPassword)} edge="end" size="small">
-                            {showPassword ? <VisibilityOff sx={{ color: '#94A3B8', fontSize: 18 }} /> : <Visibility sx={{ color: '#94A3B8', fontSize: 18 }} />}
-                          </IconButton>
-                        </InputAdornment>
-                      ),
-                      sx: fieldInputStyle
-                    }
-                  }}
-                />
-              </Grid>
-
-              {/* Patient Specific Fields */}
-              {tabValue === 0 && (
-                <>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                      Date of Birth *
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      required
-                      size="small"
-                      type="date"
-                      InputLabelProps={{ shrink: true }}
-                      value={dob}
-                      onChange={(e) => setDob(e.target.value)}
-                      slotProps={{
-                        input: {
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <CalendarTodayOutlined sx={{ color: '#94A3B8', fontSize: 18 }} />
-                            </InputAdornment>
-                          ),
-                          sx: fieldInputStyle
-                        }
-                      }}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} sm={3}>
-                    <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                      Gender
-                    </Typography>
-                    <TextField
-                      select
-                      fullWidth
-                      size="small"
-                      value={gender}
-                      onChange={(e) => setGender(e.target.value)}
-                      slotProps={{
-                        input: { sx: fieldInputStyle }
-                      }}
-                    >
-                      {['Male', 'Female', 'Other'].map((g) => (
-                        <MenuItem key={g} value={g} sx={{ fontSize: '0.88rem' }}>{g}</MenuItem>
-                      ))}
-                    </TextField>
-                  </Grid>
-
-                  <Grid item xs={12} sm={3}>
-                    <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                      Blood Group
-                    </Typography>
-                    <TextField
-                      select
-                      fullWidth
-                      size="small"
-                      value={bloodGroup}
-                      onChange={(e) => setBloodGroup(e.target.value)}
-                      slotProps={{
-                        input: { sx: fieldInputStyle }
-                      }}
-                    >
-                      {['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'].map((bg) => (
-                        <MenuItem key={bg} value={bg} sx={{ fontSize: '0.88rem' }}>{bg}</MenuItem>
-                      ))}
-                    </TextField>
-                  </Grid>
-                </>
-              )}
-
-              {/* Hospital Specific Fields */}
-              {tabValue === 1 && (
-                <>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                      License / Registry Number *
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      required
-                      size="small"
-                      placeholder="e.g. REG-123456"
-                      value={licenseNumber}
-                      onChange={(e) => setLicenseNumber(e.target.value)}
-                      slotProps={{
-                        input: {
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <BadgeOutlined sx={{ color: '#94A3B8', fontSize: 18 }} />
-                            </InputAdornment>
-                          ),
-                          sx: fieldInputStyle
-                        }
-                      }}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                      Emergency Hotline *
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      required
-                      size="small"
-                      placeholder="+91 9876500000"
-                      value={emergencyPhone}
-                      onChange={(e) => setEmergencyPhone(e.target.value)}
-                      slotProps={{
-                        input: {
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <CallOutlined sx={{ color: '#94A3B8', fontSize: 18 }} />
-                            </InputAdornment>
-                          ),
-                          sx: fieldInputStyle
-                        }
-                      }}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                      Complete Address *
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      required
-                      size="small"
-                      placeholder="123 Health Ave, City, State"
-                      value={address}
-                      onChange={(e) => setAddress(e.target.value)}
-                      slotProps={{
-                        input: {
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <LocationOnOutlined sx={{ color: '#94A3B8', fontSize: 18 }} />
-                            </InputAdornment>
-                          ),
-                          sx: fieldInputStyle
-                        }
-                      }}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                      Hospital Type
-                    </Typography>
-                    <TextField
-                      select
-                      fullWidth
-                      size="small"
-                      value={hospitalType}
-                      onChange={(e) => setHospitalType(e.target.value)}
-                      slotProps={{
-                        input: {
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <MedicalServicesOutlined sx={{ color: '#94A3B8', fontSize: 18 }} />
-                            </InputAdornment>
-                          ),
-                          sx: fieldInputStyle
-                        }
-                      }}
-                    >
-                      {['Government', 'Private', 'Charitable'].map((t) => (
-                        <MenuItem key={t} value={t} sx={{ fontSize: '0.88rem' }}>{t}</MenuItem>
-                      ))}
-                    </TextField>
-                  </Grid>
-
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                      GPS Latitude *
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      required
-                      size="small"
-                      type="number"
-                      inputProps={{ step: "0.0001" }}
-                      value={lat}
-                      onChange={(e) => setLat(e.target.value)}
-                      slotProps={{
-                        input: { sx: fieldInputStyle }
-                      }}
-                    />
-                  </Grid>
-
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="subtitle2" fontWeight="600" color="#334155" mb={0.4} sx={{ fontSize: '0.82rem' }}>
-                      GPS Longitude *
-                    </Typography>
-                    <TextField
-                      fullWidth
-                      required
-                      size="small"
-                      type="number"
-                      inputProps={{ step: "0.0001" }}
-                      value={lng}
-                      onChange={(e) => setLng(e.target.value)}
-                      slotProps={{
-                        input: { sx: fieldInputStyle }
-                      }}
-                    />
-                  </Grid>
-                </>
-              )}
-
-              <Grid item xs={12} mt={0.5}>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  fullWidth
-                  disabled={loading}
-                  endIcon={!loading && <ArrowForward />}
-                  sx={{
-                    py: 1.3,
-                    fontSize: '0.95rem',
-                    fontWeight: '700',
-                    textTransform: 'none',
-                    borderRadius: '10px',
-                    bgcolor: '#0F766E',
-                    boxShadow: '0 4px 14px rgba(15, 118, 110, 0.25)',
-                    '&:hover': {
-                      bgcolor: '#0D9488',
-                      boxShadow: '0 6px 20px rgba(13, 148, 136, 0.35)'
-                    }
-                  }}
-                >
-                  {loading ? 'Registering...' : 'Register'}
-                </Button>
-              </Grid>
-            </Grid>
+            {tabValue === 0 ? (
+              <PatientRegisterForm
+                name={name} setName={setName}
+                email={email} setEmail={setEmail}
+                password={password} setPassword={setPassword}
+                phone={phone} setPhone={setPhone}
+                dob={dob} setDob={setDob}
+                gender={gender} setGender={setGender}
+                bloodGroup={bloodGroup} setBloodGroup={setBloodGroup}
+                showPassword={showPassword} setShowPassword={setShowPassword}
+                loading={loading}
+                fieldInputStyle={fieldInputStyle}
+              />
+            ) : (
+              <HospitalRegisterForm
+                name={name} setName={setName}
+                email={email} setEmail={setEmail}
+                password={password} setPassword={setPassword}
+                phone={phone} setPhone={setPhone}
+                licenseNumber={licenseNumber} setLicenseNumber={setLicenseNumber}
+                emergencyPhone={emergencyPhone} setEmergencyPhone={setEmergencyPhone}
+                address={address} setAddress={setAddress}
+                hospitalType={hospitalType} setHospitalType={setHospitalType}
+                lat={lat} setLat={setLat}
+                lng={lng} setLng={setLng}
+                showPassword={showPassword} setShowPassword={setShowPassword}
+                loading={loading}
+                fieldInputStyle={fieldInputStyle}
+              />
+            )}
           </form>
 
-          <Box sx={{ textAlign: 'center', mt: 3, mb: 2 }}>
-            <Typography variant="body2" color="#64748B">
-              Already have an account?{' '}
-              <Link component={RouterLink} to="/login" fontWeight="700" sx={{ color: '#0F766E', textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
-                Login Here
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Typography variant="body2" sx={{ color: '#64748B' }}>
+              Already registered?{' '}
+              <Link component={RouterLink} to="/login" sx={{ color: '#0F766E', fontWeight: 600, textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}>
+                Sign in to your account
               </Link>
             </Typography>
           </Box>
         </Box>
       </Box>
 
-      {/* Right Side - Healthcare Branding Area matching Login.jsx */}
+      {/* Right Hero / Branding Area */}
       <Box
         sx={{
-          width: '50%',
-          flex: '0 0 50%',
           display: { xs: 'none', md: 'flex' },
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center',
-          position: 'relative',
+          width: '45%',
+          flex: '0 0 45%',
+          background: 'linear-gradient(135deg, #0F766E 0%, #115E59 100%)',
+          color: '#FFFFFF',
           p: 6,
-          overflow: 'hidden',
-          bgcolor: '#E6F4F1'
+          flexDirection: 'column',
+          justifyContent: 'space-between',
+          position: 'relative'
         }}
       >
-        {/* Blurred Medical Background Image */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundImage: 'url(/medicine_bg.jpg)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            filter: 'blur(10px)',
-            transform: 'scale(1.08)',
-            opacity: 0.35,
-            zIndex: 0
-          }}
-        />
-
-        {/* Soft Mint Gradient Overlay */}
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(135deg, rgba(230, 244, 241, 0.75) 0%, rgba(209, 236, 231, 0.85) 50%, rgba(232, 245, 242, 0.80) 100%)',
-            zIndex: 1
-          }}
-        />
-
-        {/* Right-side Content Container */}
-        <Box sx={{ position: 'relative', zIndex: 2, textAlign: 'center', maxWidth: '440px' }}>
-          {/* Prominent SwasthyaSetu Medical Card / Badge */}
-          <Box
-            sx={{
-              p: 4.5,
-              borderRadius: '24px',
-              bgcolor: 'rgba(255, 255, 255, 0.88)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(255, 255, 255, 0.9)',
-              boxShadow: '0 20px 50px rgba(15, 118, 110, 0.12)',
-              mb: 5,
-              display: 'inline-flex',
-              flexDirection: 'column',
-              alignItems: 'center'
-            }}
-          >
-            <Box sx={{ p: 2, borderRadius: '20px', bgcolor: 'rgba(220, 38, 38, 0.08)', mb: 2, border: '1px solid rgba(220, 38, 38, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <LocalHospital sx={{ color: '#DC2626', fontSize: 64 }} />
-            </Box>
-            <Typography variant="h4" fontWeight="900" sx={{ letterSpacing: '-0.03em', color: '#0F2C59' }}>
-              Swasthya<span style={{ color: '#0F766E' }}>Setu</span>
-            </Typography>
-          </Box>
-
-          <Typography variant="h4" fontWeight="800" color="#0F2C59" sx={{ mb: 2, fontFamily: 'serif, Inter, sans-serif' }}>
-            Join Our Healthcare Network
+        <Box sx={{ position: 'relative', zIndex: 1, my: 'auto' }}>
+          <Typography variant="h3" fontWeight="900" sx={{ mb: 2, lineHeight: 1.2 }}>
+            Connected Care When Seconds Count.
           </Typography>
-          <Typography variant="body1" color="#475569" sx={{ lineHeight: 1.7, fontSize: '1.02rem', fontWeight: '400' }}>
-            A trusted platform connecting patients, hospitals, blood donors, and essential healthcare resources.
+          <Typography variant="body1" sx={{ color: '#CCFBF1', lineHeight: 1.6, fontSize: '1.05rem', maxWidth: '420px' }}>
+            Direct access to verified hospital bed inventories, emergency ambulance tracking, and coordinated inter-hospital transfers.
           </Typography>
         </Box>
+
+        <Typography variant="caption" sx={{ color: '#99F6E4', opacity: 0.8 }}>
+          &copy; {new Date().getFullYear()} SwasthyaSetu. Empowering Emergency Healthcare.
+        </Typography>
       </Box>
     </Box>
   );
 };
 
 export default Register;
-

@@ -248,14 +248,18 @@ const CareAIChat = ({ onEmergencyClick }) => {
           {/* Input field */}
           <Box sx={{ p: 1.5, borderTop: '1px solid #e2e8f0', display: 'flex', gap: 1, bgcolor: '#ffffff', alignItems: 'center' }}>
             <TextField
-              placeholder="Ask CareAI..."
+              placeholder="Ask CareAI... (e.g. fever symptoms, ICU beds)"
               variant="outlined"
               size="small"
               fullWidth
+              inputProps={{ maxLength: 500 }}
               value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
+              onChange={(e) => setInputValue(e.target.value.slice(0, 500))}
               onKeyDown={(e) => {
-                if (e.key === 'Enter') handleSend();
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
               }}
               sx={{
                 '& .MuiOutlinedInput-root': {

@@ -3,17 +3,31 @@ const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET || 'SwasthyaSetu_super_secret_jwt_key', {
+  const secret = process.env.JWT_SECRET || 'swasthya_setu_secure_jwt_secret_key_9f8d7c6b5a4e3d2c1b0a';
+  return jwt.sign({ id }, secret, {
     expiresIn: '30d',
   });
 };
 
-// @desc    Register a new user (Patient or Admin)
-// @route   POST /api/auth/register
-// @access  Public
+const isValidEmail = (email) => {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
 const registerUser = async (req, res) => {
   try {
     const { name, email, password, role, phone, location, medicalInfo } = req.body;
+
+    if (!name || !email || !password || !phone) {
+      return res.status(400).json({ message: 'Name, email, password, and phone number are required.' });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ message: 'Please provide a valid email address.' });
+    }
+
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
+    }
 
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -48,9 +62,6 @@ const registerUser = async (req, res) => {
   }
 };
 
-// @desc    Register a new Hospital (creates User + Hospital profile)
-// @route   POST /api/auth/register-hospital
-// @access  Public
 const registerHospital = async (req, res) => {
   try {
     const {
@@ -69,12 +80,23 @@ const registerHospital = async (req, res) => {
       location
     } = req.body;
 
+    if (!name || !email || !password || !phone || !licenseNumber || !address) {
+      return res.status(400).json({ message: 'Hospital name, email, password, phone, license number, and address are required.' });
+    }
+
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ message: 'Please provide a valid email address.' });
+    }
+
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
+    }
+
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({ message: 'User with this email already exists' });
     }
 
-    // Create User first
     const user = await User.create({
       name,
       email,
@@ -83,7 +105,6 @@ const registerHospital = async (req, res) => {
       phone
     });
 
-    // Create Hospital Profile
     const hospital = await Hospital.create({
       user: user._id,
       name,
@@ -113,14 +134,15 @@ const registerHospital = async (req, res) => {
   }
 };
 
-// @desc    Auth user & get token
-// @route   POST /api/auth/login
-// @access  Public
 const authUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ email });
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required.' });
+    }
+
+    const user = await User.findOne({ email }).select('+password');
 
     if (user && (await user.comparePassword(password))) {
       let hospitalProfile = null;
@@ -147,12 +169,9 @@ const authUser = async (req, res) => {
   }
 };
 
-// @desc    Get user profile
-// @route   GET /api/auth/me
-// @access  Private
 const getUserProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).select('-password');
 
     if (user) {
       let hospitalProfile = null;
@@ -178,9 +197,6 @@ const getUserProfile = async (req, res) => {
   }
 };
 
-// @desc    Update user profile
-// @route   PUT /api/auth/profile
-// @access  Private
 const updateUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
@@ -200,6 +216,9 @@ const updateUserProfile = async (req, res) => {
       }
 
       if (req.body.password) {
+        if (typeof req.body.password !== 'string' || req.body.password.length < 6) {
+          return res.status(400).json({ message: 'New password must be at least 6 characters long.' });
+        }
         user.password = req.body.password;
       }
 

@@ -1,15 +1,10 @@
 const AIConversation = require('../models/AIConversation');
 const { getAIResponse } = require('../utils/gemini');
 
-// @desc    Get chat history
-// @route   GET /api/ai/history
-// @access  Public (Optional auth)
 const getHistory = async (req, res) => {
   try {
     const userId = req.user ? req.user._id : null;
     
-    // For guest users, we would normally use a session ID. For simplicity,
-    // if no user, return empty array (or let them maintain local state)
     if (!userId) {
       return res.json([]);
     }
@@ -25,19 +20,21 @@ const getHistory = async (req, res) => {
   }
 };
 
-// @desc    Send a message to CareAI and get a response
-// @route   POST /api/ai/chat
-// @access  Public (Optional auth)
 const sendMessageToAI = async (req, res) => {
   try {
     const { message } = req.body;
     const userId = req.user ? req.user._id : null;
 
-    if (!message) {
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return res.status(400).json({ message: 'Message content is required.' });
     }
 
-    // Get previous chat history to provide context to Gemini
+    if (message.length > 2000) {
+      return res.status(400).json({ message: 'Message exceeds maximum length of 2000 characters.' });
+    }
+
+    const cleanMessage = message.trim();
+
     let conversation = null;
     let history = [];
     if (userId) {
@@ -45,15 +42,13 @@ const sendMessageToAI = async (req, res) => {
       if (!conversation) {
         conversation = await AIConversation.create({ user: userId, messages: [] });
       }
-      history = conversation.messages.slice(-10); // last 10 messages
+      history = conversation.messages.slice(-10); 
     }
 
-    // Fetch response from Gemini / local rules engine
-    const aiResult = await getAIResponse(message, history);
+    const aiResult = await getAIResponse(cleanMessage, history);
 
-    // Save history if user is logged in
     if (userId && conversation) {
-      conversation.messages.push({ sender: 'user', text: message });
+      conversation.messages.push({ sender: 'user', text: cleanMessage });
       conversation.messages.push({ sender: 'ai', text: aiResult.reply });
       await conversation.save();
     }

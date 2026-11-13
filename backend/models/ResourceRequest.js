@@ -17,7 +17,7 @@ const ResourceRequestSchema = new mongoose.Schema({
     required: true,
   },
   details: {
-    bloodGroup: { type: String }, // e.g. "Op", "On"
+    bloodGroup: { type: String }, 
     medicineName: { type: String },
     notes: { type: String }
   },
