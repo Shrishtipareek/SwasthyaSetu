@@ -37,6 +37,11 @@ const EmergencyRequestSchema = new mongoose.Schema({
   },
   details: {
     type: String,
+  },
+  ambulance: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Ambulance',
+    default: null,
   }
 }, { timestamps: true });
 

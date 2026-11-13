@@ -37,10 +37,11 @@ import {
   Warning as WarningIcon
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
-import { appointmentAPI, medicalDocumentAPI, bloodDonorAPI } from '../services/api';
+import { appointmentAPI, medicalDocumentAPI, bloodDonorAPI, getErrorMessage } from '../services/api';
 
 const UserDashboard = ({ onEmergencyClick }) => {
   const { user, updateProfile } = useAuth();
+  const [actionError, setActionError] = useState('');
   const [appointments, setAppointments] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [isDonor, setIsDonor] = useState(false);
@@ -68,7 +69,8 @@ const UserDashboard = ({ onEmergencyClick }) => {
   // Blood donor form
   const [donorArea, setDonorArea] = useState('');
   const [donorPref, setDonorPref] = useState('Phone');
-  const [donorBloodGroup, setDonorBloodGroup] = useState(user?.medicalInfo?.bloodGroup || 'O+');
+  // Never pre-select a blood group the user did not provide (it used to default to "O+").
+  const [donorBloodGroup, setDonorBloodGroup] = useState(user?.medicalInfo?.bloodGroup || '');
   const [donorSuccess, setDonorSuccess] = useState('');
   const [donorError, setDonorError] = useState('');
   const [donorLoading, setDonorLoading] = useState(false);
@@ -125,6 +127,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
     setProfileSuccess('');
+    setActionError('');
     try {
       await updateProfile({
         medicalInfo: {
@@ -138,12 +141,14 @@ const UserDashboard = ({ onEmergencyClick }) => {
       setProfileSuccess('Medical profile updated successfully.');
     } catch (err) {
       console.error(err);
+      setActionError(getErrorMessage(err, 'Failed to update medical profile.'));
     }
   };
 
   const handleDocUpload = async (e) => {
     e.preventDefault();
     setDocSuccess('');
+    setActionError('');
     try {
       await medicalDocumentAPI.upload({
         title: docTitle,
@@ -157,37 +162,35 @@ const UserDashboard = ({ onEmergencyClick }) => {
       fetchDocs();
     } catch (err) {
       console.error('Failed to upload document:', err.message);
-    }
-  };
-
-  const handleDeleteDoc = async (id) => {
-    try {
-      await medicalDocumentAPI.delete(id);
-      fetchDocs();
-    } catch (err) {
-      console.error('Failed to delete document:', err.message);
+      setActionError(getErrorMessage(err, 'Failed to add document.'));
     }
   };
 
   const handleConfirmDeleteDoc = async () => {
     if (!deletingDoc) return;
+    setActionError('');
     try {
       await medicalDocumentAPI.delete(deletingDoc._id);
       setDeletingDoc(null);
       fetchDocs();
     } catch (err) {
       console.error('Failed to delete document:', err.message);
+      setDeletingDoc(null);
+      setActionError(getErrorMessage(err, 'Failed to delete document.'));
     }
   };
 
   const handleConfirmCancelAppt = async () => {
     if (!cancellingAppt) return;
+    setActionError('');
     try {
       await appointmentAPI.cancel(cancellingAppt._id);
       setCancellingAppt(null);
       fetchDashboardData();
     } catch (err) {
       console.error('Failed to cancel appointment:', err.message);
+      setCancellingAppt(null);
+      setActionError(getErrorMessage(err, 'Failed to cancel appointment.'));
     }
   };
 
@@ -234,9 +237,9 @@ const UserDashboard = ({ onEmergencyClick }) => {
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4} flexWrap="wrap" gap={2}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4, flexWrap: 'wrap', gap: 2 }}>
         <Box>
-          <Typography variant="h4" fontWeight="bold" color="#0f172a">
+          <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#0f172a' }}>
             Hello, {user?.name}
           </Typography>
           <Typography variant="body2" color="textSecondary">
@@ -248,26 +251,32 @@ const UserDashboard = ({ onEmergencyClick }) => {
         </Button>
       </Box>
 
+      {actionError && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setActionError('')}>
+          {actionError}
+        </Alert>
+      )}
+
       <Grid container spacing={4}>
         {/* Appointments List */}
-        <Grid item xs={12} md={7}>
+        <Grid size={{ xs: 12, md: 7 }}>
           <Paper elevation={0} sx={{ p: 3, border: '1px solid #E2E8F0', borderRadius: '14px', mb: 4, bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <CalendarMonth sx={{ color: '#0F766E' }} />
-              <Typography variant="h6" fontWeight="bold" color="#0F172A">
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#0F172A' }}>
                 Upcoming Doctor Appointments
               </Typography>
             </Box>
             <Divider sx={{ mb: 2 }} />
 
             {loadingData ? (
-              <Box py={2}>
+              <Box sx={{ py: 2 }}>
                 <Skeleton variant="text" width="100%" height={36} />
                 <Skeleton variant="text" width="100%" height={36} />
                 <Skeleton variant="text" width="100%" height={36} />
               </Box>
             ) : appointments.filter(a => a.status === 'upcoming').length === 0 ? (
-              <Box py={4} textAlign="center">
+              <Box sx={{ py: 4, textAlign: 'center' }}>
                 <Typography color="textSecondary">No upcoming appointments scheduled.</Typography>
                 <Button variant="contained" size="small" href="/search-hospitals" sx={{ mt: 2, textTransform: 'capitalize' }}>
                   Book Appointment Now
@@ -305,9 +314,9 @@ const UserDashboard = ({ onEmergencyClick }) => {
 
           {/* Medical Document Locker */}
           <Paper elevation={0} sx={{ p: 3, border: '1px solid #E2E8F0', borderRadius: '14px', bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <UploadFile sx={{ color: '#0F766E' }} />
-              <Typography variant="h6" fontWeight="bold" color="#0F172A">
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#0F172A' }}>
                 Medical Records Locker
               </Typography>
             </Box>
@@ -317,7 +326,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
 
             <form onSubmit={handleDocUpload}>
               <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} sm={5}>
+                <Grid size={{ xs: 12, sm: 5 }}>
                   <TextField
                     label="Record Title"
                     size="small"
@@ -327,7 +336,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
                     onChange={(e) => setDocTitle(e.target.value)}
                   />
                 </Grid>
-                <Grid item xs={12} sm={3}>
+                <Grid size={{ xs: 12, sm: 3 }}>
                   <TextField
                     select
                     label="Type"
@@ -342,7 +351,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
                     <MenuItem value="other">Other</MenuItem>
                   </TextField>
                 </Grid>
-                <Grid item xs={12} sm={4}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <Button type="submit" variant="outlined" fullWidth sx={{ height: '40px', fontWeight: 'bold', borderColor: '#0F766E', color: '#0F766E', '&:hover': { bgcolor: '#E6F6F3' } }}>
                     Upload File Record
                   </Button>
@@ -351,12 +360,12 @@ const UserDashboard = ({ onEmergencyClick }) => {
             </form>
 
             {loadingData ? (
-              <Box py={2}>
+              <Box sx={{ py: 2 }}>
                 <Skeleton variant="text" width="100%" height={36} />
                 <Skeleton variant="text" width="100%" height={36} />
               </Box>
             ) : documents.length === 0 ? (
-              <Typography variant="body2" color="textSecondary" align="center" py={2}>
+              <Typography variant="body2" color="textSecondary" align="center" sx={{ py: 2 }}>
                 No medical documents saved in your locker.
               </Typography>
             ) : (
@@ -387,12 +396,12 @@ const UserDashboard = ({ onEmergencyClick }) => {
         </Grid>
 
         {/* Profile and Emergency info panels */}
-        <Grid item xs={12} md={5}>
+        <Grid size={{ xs: 12, md: 5 }}>
           {/* Medical Profile */}
           <Paper elevation={0} sx={{ p: 3, border: '1px solid #E2E8F0', borderRadius: '14px', mb: 4, bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-            <Box display="flex" alignItems="center" gap={1} mb={2}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
               <Person sx={{ color: '#0F766E' }} />
-              <Typography variant="h6" fontWeight="bold" color="#0F172A">
+              <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#0F172A' }}>
                 Personal Medical Profile
               </Typography>
             </Box>
@@ -417,11 +426,11 @@ const UserDashboard = ({ onEmergencyClick }) => {
                 onChange={(e) => setConditions(e.target.value)}
                 sx={{ mb: 2 }}
               />
-              <Typography variant="subtitle2" fontWeight="bold" color="#475569" sx={{ mb: 1 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', color: '#475569', mb: 1 }}>
                 Emergency Contact Details
               </Typography>
               <Grid container spacing={2}>
-                <Grid item xs={6}>
+                <Grid size={6}>
                   <TextField
                     label="Contact Name"
                     fullWidth
@@ -430,7 +439,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
                     onChange={(e) => setEmergencyContact({ ...emergencyContact, name: e.target.value })}
                   />
                 </Grid>
-                <Grid item xs={6}>
+                <Grid size={6}>
                   <TextField
                     label="Relation"
                     fullWidth
@@ -439,7 +448,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
                     onChange={(e) => setEmergencyContact({ ...emergencyContact, relation: e.target.value })}
                   />
                 </Grid>
-                <Grid item xs={12}>
+                <Grid size={12}>
                   <TextField
                     label="Phone Number"
                     fullWidth
@@ -457,10 +466,10 @@ const UserDashboard = ({ onEmergencyClick }) => {
 
           {/* Voluntary Blood Donor Registration & Management */}
           <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '16px', mb: 4 }}>
-            <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-              <Box display="flex" alignItems="center" gap={1}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Bloodtype color="error" />
-                <Typography variant="h6" fontWeight="bold" color="#0f172a">
+                <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#0f172a' }}>
                   Voluntary Blood Donor
                 </Typography>
               </Box>
@@ -489,7 +498,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
                     Contact Preference: <strong>{donorPref}</strong>
                   </Typography>
                 </Box>
-                <Box display="flex" gap={1.5}>
+                <Box sx={{ display: 'flex', gap: 1.5 }}>
                   <Button
                     variant="outlined"
                     size="small"
@@ -550,7 +559,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
                   <MenuItem value="Email">Email</MenuItem>
                   <MenuItem value="SwasthyaSetu Chat">SwasthyaSetu Chat</MenuItem>
                 </TextField>
-                <Box display="flex" gap={1.5}>
+                <Box sx={{ display: 'flex', gap: 1.5 }}>
                   {isEditingDonor && (
                     <Button
                       variant="outlined"
@@ -582,7 +591,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
       <Dialog
         open={Boolean(cancellingAppt)}
         onClose={() => setCancellingAppt(null)}
-        PaperProps={{ sx: { borderRadius: '12px', p: 1 } }}
+        slotProps={{ paper: { sx: { borderRadius: '12px', p: 1 } } }}
       >
         <DialogTitle sx={{ fontWeight: 'bold', color: '#0F172A' }}>
           Confirm Appointment Cancellation
@@ -606,7 +615,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
       <Dialog
         open={Boolean(deletingDoc)}
         onClose={() => setDeletingDoc(null)}
-        PaperProps={{ sx: { borderRadius: '12px', p: 1 } }}
+        slotProps={{ paper: { sx: { borderRadius: '12px', p: 1 } } }}
       >
         <DialogTitle sx={{ fontWeight: 'bold', color: '#0F172A' }}>
           Delete Medical Document
@@ -630,7 +639,7 @@ const UserDashboard = ({ onEmergencyClick }) => {
       <Dialog
         open={confirmDeleteDonor}
         onClose={() => setConfirmDeleteDonor(false)}
-        PaperProps={{ sx: { borderRadius: '12px', p: 1 } }}
+        slotProps={{ paper: { sx: { borderRadius: '12px', p: 1 } } }}
       >
         <DialogTitle sx={{ fontWeight: 'bold', color: '#0F172A' }}>
           Deregister as Blood Donor

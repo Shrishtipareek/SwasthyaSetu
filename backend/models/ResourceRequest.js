@@ -13,7 +13,7 @@ const ResourceRequestSchema = new mongoose.Schema({
   },
   resourceType: {
     type: String,
-    enum: ['beds', 'icuBeds', 'blood', 'medicines', 'ventilators', 'ambulances', 'oxygen'],
+    enum: ['beds', 'icuBeds', 'emergencyBeds', 'blood', 'medicines', 'ventilators', 'ambulances', 'oxygen'],
     required: true,
   },
   details: {
@@ -24,6 +24,7 @@ const ResourceRequestSchema = new mongoose.Schema({
   quantity: {
     type: Number,
     required: true,
+    min: 1,
   },
   priority: {
     type: String,

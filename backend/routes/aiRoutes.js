@@ -1,15 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { getHistory, sendMessageToAI } = require('../controllers/aiController');
-const { protect } = require('../middleware/authMiddleware');
+const { optionalProtect } = require('../middleware/authMiddleware');
 
-const optionalProtect = (req, res, next) => {
-  if (req.headers.authorization) {
-    return protect(req, res, next);
-  }
-  next();
-};
-
+// Guests may chat. An expired token in localStorage used to make every chat
+// request fail with 401; optionalProtect falls back to guest mode instead.
 router.post('/chat', optionalProtect, sendMessageToAI);
 router.get('/history', optionalProtect, getHistory);
 

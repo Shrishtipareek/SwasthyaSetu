@@ -129,49 +129,62 @@ const fallbackDonors = [
 const fallbackDoctors = [
   {
     _id: "65d000000000000000000071",
-    name: "Dr. Ramesh Kumar",
+    // Names without "Dr.": the UI adds the prefix itself ("Dr. Dr. Ramesh Kumar" otherwise).
+    name: "Ramesh Kumar",
     specialization: "Cardiologist",
     contact: "9876541001",
     experience: 12,
     schedule: { days: ["Monday", "Wednesday", "Friday"], slots: ["09:00 AM", "10:00 AM", "11:00 AM", "02:00 PM"] },
     status: "available",
-    hospital: { name: "AIIMS New Delhi", address: "Ansari Nagar, New Delhi" },
+    // Hospital ids match fallbackHospitals so ?hospitalId= filtering also works offline.
+    hospital: { _id: "65d000000000000000000001", name: "All India Institute of Medical Sciences (AIIMS)", address: "Ansari Nagar, New Delhi" },
     isFallback: true
   },
   {
     _id: "65d000000000000000000072",
-    name: "Dr. Sita Sharma",
+    name: "Sita Sharma",
     specialization: "Pediatrician",
     contact: "9876541002",
     experience: 8,
     schedule: { days: ["Tuesday", "Thursday", "Saturday"], slots: ["10:00 AM", "11:00 AM", "03:00 PM"] },
     status: "available",
-    hospital: { name: "Apollo Hospital Delhi", address: "Sarita Vihar, New Delhi" },
+    hospital: { _id: "65d000000000000000000002", name: "Apollo Hospital Delhi", address: "Sarita Vihar, Delhi Mathura Road, New Delhi" },
     isFallback: true
   },
   {
     _id: "65d000000000000000000073",
-    name: "Dr. Ajay Tyagi",
+    name: "Ajay Tyagi",
     specialization: "General Medicine",
     contact: "9876541003",
     experience: 15,
     schedule: { days: ["Monday", "Tuesday", "Wednesday"], slots: ["09:00 AM", "02:00 PM", "04:00 PM"] },
     status: "available",
-    hospital: { name: "Max Super Speciality Hospital Saket", address: "Saket, New Delhi" },
+    hospital: { _id: "65d000000000000000000003", name: "Max Super Speciality Hospital Saket", address: "1-2, Press Enclave Road, Saket, New Delhi" },
     isFallback: true
   }
 ];
 
-const fallbackCampaigns = [
+// Dates are relative to "now" so the demo drives are always upcoming
+// (fixed dates had already passed and showed as expired).
+const daysFromToday = (days) => {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+
+const getFallbackCampaigns = () => [
   {
     _id: "65d000000000000000000091",
     title: "Mega Blood Donation Camp",
     description: "Join us for our annual blood donation camp to save lives in emergency situations. Free health screening checks for all donors.",
     type: "blood_camp",
-    date: "2026-09-15",
+    date: daysFromToday(14),
     time: "09:00 AM - 05:00 PM",
     venue: "AIIMS Main Auditorium Area, New Delhi",
-    hospital: { name: "AIIMS New Delhi" },
+    organizer: "All India Institute of Medical Sciences (AIIMS)",
+    status: "active",
+    hospital: { name: "All India Institute of Medical Sciences (AIIMS)" },
     registeredUsers: [],
     isFallback: true
   },
@@ -180,9 +193,11 @@ const fallbackCampaigns = [
     title: "Free Vaccination Drive",
     description: "Hepatitis B and Influenza vaccination drive for senior citizens and young children.",
     type: "vaccination",
-    date: "2026-10-10",
+    date: daysFromToday(30),
     time: "10:00 AM - 03:00 PM",
     venue: "Apollo Hospital Complex, New Delhi",
+    organizer: "Apollo Hospital Delhi",
+    status: "upcoming",
     hospital: { name: "Apollo Hospital Delhi" },
     registeredUsers: [],
     isFallback: true
@@ -399,7 +414,9 @@ module.exports = {
   fallbackHospitals,
   fallbackDonors,
   fallbackDoctors,
-  fallbackCampaigns,
+  getFallbackCampaigns,
+  // Static snapshot kept for backwards compatibility; prefer getFallbackCampaigns().
+  get fallbackCampaigns() { return getFallbackCampaigns(); },
   verifiedRegionalHospitals
 };
 

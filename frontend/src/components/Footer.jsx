@@ -8,10 +8,10 @@ const Footer = () => {
     <Box sx={{ bgcolor: '#ffffff', color: '#64748B', py: 6, mt: 'auto', borderTop: '1px solid #E2E8F0', boxShadow: '0 -4px 20px rgba(15, 118, 110, 0.02)' }}>
       <Container maxWidth="lg">
         <Grid container spacing={4}>
-          <Grid xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
               <LocalHospital sx={{ color: '#DC2626', mr: 1, fontSize: 26 }} />
-              <Typography variant="h6" color="#0F172A" fontWeight="bold">
+              <Typography variant="h6" sx={{ color: '#0F172A', fontWeight: 'bold' }}>
                 Swasthya<span style={{ color: '#0F766E' }}>Setu</span>
               </Typography>
             </Box>
@@ -19,8 +19,8 @@ const Footer = () => {
               Centralized emergency coordination network connecting hospitals, voluntary donors, and patients. Delivering real-time resource availability when it matters most.
             </Typography>
           </Grid>
-          <Grid xs={12} sm={6} md={4}>
-            <Typography variant="subtitle1" color="#0F172A" fontWeight="bold" mb={2}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <Typography variant="subtitle1" sx={{ color: '#0F172A', fontWeight: 'bold', mb: 2 }}>
               Resources
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -30,11 +30,11 @@ const Footer = () => {
               <Link href="/campaigns" color="inherit" underline="hover" sx={{ '&:hover': { color: '#0F766E' } }}>Awareness Campaigns</Link>
             </Box>
           </Grid>
-          <Grid xs={12} sm={6} md={4}>
-            <Typography variant="subtitle1" color="#0F172A" fontWeight="bold" mb={2}>
+          <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+            <Typography variant="subtitle1" sx={{ color: '#0F172A', fontWeight: 'bold', mb: 2 }}>
               Disclaimer
             </Typography>
-            <Typography variant="caption" display="block" sx={{ lineHeight: 1.5, color: '#94A3B8' }}>
+            <Typography variant="caption" sx={{ display: 'block', lineHeight: 1.5, color: '#94A3B8' }}>
               SwasthyaSetu is a technology platform connecting users with hospitals and providing general health information via CareAI. We do NOT provide diagnostic services or write medical prescriptions. In a severe medical emergency, please dial local helpline numbers (like 102/108) or visit the nearest ER immediately.
             </Typography>
           </Grid>

@@ -5,10 +5,12 @@ const BloodDonorSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
+    unique: true, // one donor registration per user
   },
   bloodGroup: {
     type: String,
     required: true,
+    enum: ['A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-'],
   },
   cityArea: {
     type: String,

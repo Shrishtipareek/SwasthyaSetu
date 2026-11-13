@@ -345,9 +345,14 @@ const HospitalSearch = () => {
       let processed = data || [];
       if (userCoords) {
         processed = processed.map((h) => {
-          const hLat = h.location?.coordinates?.[1] || h.lat || 28.6139;
-          const hLng = h.location?.coordinates?.[0] || h.lng || 77.2090;
-          const dist = calculateDistanceKm(userCoords.lat, userCoords.lng, hLat, hLng);
+          // The API returns location as { lat, lng }. Reading GeoJSON-style
+          // coordinates[] always fell back to the Delhi centre, so every hospital
+          // got the same distance and the "nearest first" sort did nothing.
+          const hLat = h.location?.lat ?? h.location?.coordinates?.[1] ?? h.lat;
+          const hLng = h.location?.lng ?? h.location?.coordinates?.[0] ?? h.lng;
+          const dist = Number.isFinite(Number(hLat)) && Number.isFinite(Number(hLng))
+            ? calculateDistanceKm(userCoords.lat, userCoords.lng, Number(hLat), Number(hLng))
+            : null;
           return { ...h, distanceKm: dist };
         });
         processed.sort((a, b) => parseFloat(a.distanceKm || 999) - parseFloat(b.distanceKm || 999));
@@ -376,11 +381,14 @@ const HospitalSearch = () => {
     setSelectedDoctor('');
     setBookingDate('');
     setBookingSlot('');
+    // Clear first so a previously opened hospital's doctors are never shown.
+    setDoctors([]);
     try {
       const { data } = await doctorAPI.getDoctors({ hospitalId: hosp._id || hosp.id });
       setDoctors(data || []);
     } catch (err) {
       console.error(err);
+      setBookingError(err.response?.data?.message || 'Could not load doctors for this hospital.');
     }
   };
 
@@ -415,9 +423,9 @@ const HospitalSearch = () => {
   return (
     <Container maxWidth="xl" sx={{ py: 5 }}>
       {/* Page Header */}
-      <Box mb={3} display="flex" flexDirection={{ xs: 'column', md: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }} gap={2}>
+      <Box sx={{ mb: 3, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', md: 'center' }, gap: 2 }}>
         <Box>
-          <Typography variant="h4" fontWeight="800" color="#0F172A" sx={{ letterSpacing: '-0.02em' }}>
+          <Typography variant="h4" sx={{ fontWeight: '800', color: '#0F172A', letterSpacing: '-0.02em' }}>
             Find Hospitals & Medical Resources
           </Typography>
           <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
@@ -426,7 +434,7 @@ const HospitalSearch = () => {
         </Box>
 
         {/* Primary Action Button: Find Hospital in My Area */}
-        <Box display="flex" alignItems="center" gap={1.5} flexWrap="wrap">
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: { xs: 'stretch', sm: 'center' }, gap: 1.5, width: { xs: '100%', md: 'auto' }, flexShrink: 0 }}>
           <Button
             variant="contained"
             size="large"
@@ -440,6 +448,7 @@ const HospitalSearch = () => {
               borderRadius: '12px',
               bgcolor: '#0F766E',
               color: '#FFFFFF',
+              whiteSpace: 'nowrap',
               boxShadow: '0 4px 14px rgba(15, 118, 110, 0.3)',
               '&:hover': { bgcolor: '#0D9488' }
             }}
@@ -459,6 +468,8 @@ const HospitalSearch = () => {
               borderRadius: '12px',
               borderColor: '#CBD5E1',
               color: '#0F172A',
+              bgcolor: '#FFFFFF',
+              whiteSpace: 'nowrap',
               '&:hover': { bgcolor: '#F8FAFC', borderColor: '#94A3B8' }
             }}
           >
@@ -484,23 +495,23 @@ const HospitalSearch = () => {
             gap: 2
           }}
         >
-          <Box display="flex" alignItems="center" gap={1.5}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Box sx={{ p: 1, bgcolor: '#0F766E', borderRadius: '50%', color: '#fff', display: 'flex' }}>
               <LocationOn fontSize="small" />
             </Box>
             <Box>
-              <Typography variant="subtitle2" fontWeight="700" color="#0F766E">
+              <Typography variant="subtitle2" sx={{ fontWeight: '700', color: '#0F766E' }}>
                 Detected Location: {userCoords.displayName}
               </Typography>
-              <Typography variant="caption" color="#64748B">
+              <Typography variant="caption" sx={{ color: '#64748B' }}>
                 Coordinates: {userCoords.lat.toFixed(4)}, {userCoords.lng.toFixed(4)} • Searching healthcare facilities within <strong>{radiusKm} km</strong>
               </Typography>
             </Box>
           </Box>
 
           {/* Distance Radius Selector */}
-          <Box display="flex" alignItems="center" gap={1}>
-            <Typography variant="caption" fontWeight="bold" color="#64748B" textTransform="uppercase">
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#64748B', textTransform: 'uppercase' }}>
               Radius:
             </Typography>
             <ButtonGroup size="small" variant="outlined">
@@ -542,32 +553,35 @@ const HospitalSearch = () => {
       )}
 
       {/* Main Mode Tabs */}
-      <Paper elevation={0} sx={{ borderBottom: '1px solid #E2E8F0', mb: 3 }}>
+      <Paper elevation={0} sx={{ border: '1px solid #E2E8F0', borderRadius: '12px', mb: 3, px: 1 }}>
         <Tabs
           value={activeTab}
           onChange={(_, v) => setActiveTab(v)}
           textColor="primary"
           indicatorColor="primary"
           sx={{
-            '& .MuiTab-root': { fontWeight: '700', textTransform: 'none', fontSize: '0.95rem' },
+            '& .MuiTab-root': { fontWeight: '700', textTransform: 'none', fontSize: '0.95rem', minHeight: 56, whiteSpace: 'nowrap' },
             '& .Mui-selected': { color: '#0F766E !important' },
-            '& .MuiTabs-indicator': { bgcolor: '#0F766E' }
+            '& .MuiTabs-indicator': { bgcolor: '#0F766E', height: 3, borderRadius: '3px 3px 0 0' }
           }}
         >
           <Tab
             label={
-              <Box display="flex" alignItems="center" gap={1}>
-                <span>Nearby Facilities (OpenStreetMap Live)</span>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <MapIcon sx={{ fontSize: 20 }} />
+                <span>Nearby Facilities</span>
+                <Chip label="Live" size="small" sx={{ height: 20, fontSize: '0.68rem', bgcolor: '#E6F6F3', color: '#0F766E', fontWeight: 'bold' }} />
                 {nearbyHospitals.length > 0 && (
-                  <Chip label={nearbyHospitals.length} size="small" sx={{ height: 20, bgcolor: '#E6F6F3', color: '#0F766E', fontWeight: 'bold' }} />
+                  <Chip label={nearbyHospitals.length} size="small" sx={{ height: 20, bgcolor: '#F1F5F9', color: '#0F172A', fontWeight: 'bold' }} />
                 )}
               </Box>
             }
           />
           <Tab
             label={
-              <Box display="flex" alignItems="center" gap={1}>
-                <span>SwasthyaSetu Verified Network (Bed Booking)</span>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <VerifiedUser sx={{ fontSize: 20 }} />
+                <span>Verified Network & Bed Booking</span>
                 {networkHospitals.length > 0 && (
                   <Chip label={networkHospitals.length} size="small" sx={{ height: 20, bgcolor: '#F1F5F9', color: '#0F172A', fontWeight: 'bold' }} />
                 )}
@@ -581,24 +595,24 @@ const HospitalSearch = () => {
       {activeTab === 0 && (
         <Box>
           {!userCoords && !nearbyLoading && nearbyHospitals.length === 0 ? (
-            <Paper elevation={0} sx={{ p: 6, textAlign: 'center', border: '1px solid #E2E8F0', borderRadius: '16px', bgcolor: '#FAFAFA', my: 2 }}>
+            <Paper elevation={0} sx={{ p: { xs: 3, sm: 6 }, textAlign: 'center', border: '1px solid #E2E8F0', borderRadius: '16px', bgcolor: '#FFFFFF', my: 2 }}>
               <Box sx={{ p: 2, bgcolor: '#E6F6F3', borderRadius: '50%', width: 64, height: 64, mx: 'auto', mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <MyLocation sx={{ fontSize: 32, color: '#0F766E' }} />
               </Box>
-              <Typography variant="h5" fontWeight="800" color="#0F172A" gutterBottom>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: '800', color: '#0F172A' }}>
                 Discover Real Nearby Healthcare Facilities
               </Typography>
               <Typography variant="body1" color="textSecondary" sx={{ maxWidth: 540, mx: 'auto', mb: 3 }}>
                 Click below to detect your current location or select your city to explore actual verified hospitals, clinics, and emergency centers using OpenStreetMap.
               </Typography>
-              <Box display="flex" justifyContent="center" gap={2} flexWrap="wrap">
+              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'center', alignItems: { xs: 'stretch', sm: 'center' }, gap: 2 }}>
                 <Button
                   variant="contained"
                   size="large"
                   onClick={handleDetectLocation}
                   disabled={detectingLocation}
                   startIcon={detectingLocation ? <CircularProgress size={18} color="inherit" /> : <MyLocation />}
-                  sx={{ bgcolor: '#0F766E', '&:hover': { bgcolor: '#0D9488' }, fontWeight: '700', borderRadius: '10px' }}
+                  sx={{ bgcolor: '#0F766E', '&:hover': { bgcolor: '#0D9488' }, fontWeight: '700', borderRadius: '10px', whiteSpace: 'nowrap' }}
                 >
                   {detectingLocation ? 'Detecting Location...' : 'Use My Current Location'}
                 </Button>
@@ -607,7 +621,7 @@ const HospitalSearch = () => {
                   size="large"
                   startIcon={<EditLocation />}
                   onClick={() => setManualModalOpen(true)}
-                  sx={{ borderColor: '#CBD5E1', color: '#0F172A', fontWeight: '600', borderRadius: '10px' }}
+                  sx={{ borderColor: '#CBD5E1', color: '#0F172A', fontWeight: '600', borderRadius: '10px', whiteSpace: 'nowrap' }}
                 >
                   Choose City / Area Manually
                 </Button>
@@ -616,18 +630,18 @@ const HospitalSearch = () => {
           ) : (
             <Grid container spacing={3}>
               {/* Left Column: Filter controls + List of Hospital Cards */}
-              <Grid item xs={12} lg={7}>
+              <Grid size={{ xs: 12, lg: 7 }}>
                 {/* Search & Filter Bar */}
                 <Paper elevation={0} sx={{ p: 2, border: '1px solid #E2E8F0', borderRadius: '14px', mb: 2.5, bgcolor: '#FFFFFF' }}>
-                  <Grid container spacing={1.5} alignItems="center">
-                    <Grid item xs={12} sm={6}>
+                  <Grid container spacing={1.5} sx={{ alignItems: 'center' }}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <TextField
                         size="small"
                         fullWidth
                         placeholder="Search facilities by name or road..."
                         value={nearbySearchTerm}
                         onChange={(e) => setNearbySearchTerm(e.target.value)}
-                        InputProps={{
+                        slotProps={{ input: {
                           startAdornment: (
                             <InputAdornment position="start">
                               <Search sx={{ color: '#94A3B8', fontSize: 20 }} />
@@ -640,11 +654,11 @@ const HospitalSearch = () => {
                               </IconButton>
                             </InputAdornment>
                           )
-                        }}
+                        } }}
                       />
                     </Grid>
 
-                    <Grid item xs={12} sm={6}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
                       <TextField
                         select
                         size="small"
@@ -664,8 +678,8 @@ const HospitalSearch = () => {
                   </Grid>
 
                   {/* Active Stats & Count */}
-                  <Box display="flex" justifyContent="space-between" alignItems="center" mt={1.5} pt={1.5} borderTop="1px solid #F1F5F9">
-                    <Typography variant="body2" color="#64748B">
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1.5, pt: 1.5, borderTop: '1px solid #F1F5F9' }}>
+                    <Typography variant="body2" sx={{ color: '#64748B' }}>
                       {nearbyLoading && nearbyHospitals.length === 0 ? (
                         <span>Searching facilities within <strong>{radiusKm} km</strong>...</span>
                       ) : (
@@ -701,16 +715,16 @@ const HospitalSearch = () => {
 
                 {/* Skeletons while loading */}
                 {nearbyLoading ? (
-                  <Box display="flex" flexDirection="column" gap={2}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {[1, 2, 3, 4].map((i) => (
                       <Card key={i} sx={{ border: '1px solid #E2E8F0', borderRadius: '14px', p: 2.5 }}>
-                        <Box display="flex" justifyContent="space-between" mb={1}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
                           <Skeleton variant="text" width="60%" height={28} />
                           <Skeleton variant="rounded" width={80} height={22} sx={{ borderRadius: '12px' }} />
                         </Box>
                         <Skeleton variant="text" width="85%" height={18} sx={{ mb: 1.5 }} />
                         <Divider sx={{ my: 1.5 }} />
-                        <Box display="flex" justifyContent="space-between" gap={1}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
                           <Skeleton variant="rounded" width="45%" height={34} sx={{ borderRadius: '8px' }} />
                           <Skeleton variant="rounded" width="45%" height={34} sx={{ borderRadius: '8px' }} />
                         </Box>
@@ -719,7 +733,7 @@ const HospitalSearch = () => {
                   </Box>
                 ) : filteredNearbyHospitals.length === 0 ? (
                   <Paper elevation={0} sx={{ p: 5, textAlign: 'center', border: '1px solid #E2E8F0', borderRadius: '14px' }}>
-                    <Typography variant="h6" fontWeight="bold" color="#0F172A" gutterBottom>
+                    <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: '#0F172A' }}>
                       No Facilities Found in {radiusKm} km Radius
                     </Typography>
                     <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
@@ -734,7 +748,7 @@ const HospitalSearch = () => {
                     </Button>
                   </Paper>
                 ) : (
-                  <Box display="flex" flexDirection="column" gap={2} sx={{ maxHeight: '780px', overflowY: 'auto', pr: 0.5 }}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: '780px', overflowY: 'auto', pr: 0.5 }}>
                     {filteredNearbyHospitals.map((hosp) => {
                       const isSelected = selectedHospital?.id === hosp.id;
                       const osmDirectionsUrl = userCoords
@@ -746,6 +760,9 @@ const HospitalSearch = () => {
                           key={hosp.id}
                           elevation={0}
                           sx={{
+                            // The list is a height-limited flex column; without this the
+                            // cards shrink and their address/actions get clipped.
+                            flexShrink: 0,
                             border: isSelected ? '2px solid #0F766E' : '1px solid #E2E8F0',
                             borderRadius: '14px',
                             bgcolor: isSelected ? '#F0FDFA' : '#FFFFFF',
@@ -755,8 +772,8 @@ const HospitalSearch = () => {
                           }}
                         >
                           <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
-                            <Box display="flex" justifyContent="space-between" alignItems="flex-start" gap={1} mb={0.5}>
-                              <Typography variant="h6" fontWeight="800" color="#0F172A" sx={{ lineHeight: 1.3 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1, mb: 0.5 }}>
+                              <Typography variant="h6" sx={{ fontWeight: '800', color: '#0F172A', lineHeight: 1.3 }}>
                                 {hosp.name}
                               </Typography>
                               {hosp.distanceKm != null && (
@@ -769,7 +786,7 @@ const HospitalSearch = () => {
                               )}
                             </Box>
 
-                            <Box display="flex" alignItems="center" gap={1} mb={1} flexWrap="wrap">
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, flexWrap: 'wrap' }}>
                               {hosp.isSwasthyaSetuPartner ? (
                                 <Chip
                                   icon={<VerifiedUser sx={{ fontSize: 13, color: '#0F766E !important' }} />}
@@ -813,14 +830,14 @@ const HospitalSearch = () => {
                               )}
                             </Box>
 
-                            <Typography variant="body2" color="#64748B" sx={{ mb: 1.5, lineHeight: 1.4 }}>
+                            <Typography variant="body2" sx={{ color: '#64748B', mb: 1.5, lineHeight: 1.4 }}>
                               {hosp.address}
                             </Typography>
 
                             <Divider sx={{ my: 1.5 }} />
 
-                            <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={1}>
-                              <Box display="flex" gap={1} flexWrap="wrap">
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}>
+                              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                                 <Button
                                   variant="contained"
                                   size="small"
@@ -861,7 +878,7 @@ const HospitalSearch = () => {
               </Grid>
 
               {/* Right Column: React-Leaflet Map */}
-              <Grid item xs={12} lg={5}>
+              <Grid size={{ xs: 12, lg: 5 }}>
                 <Box sx={{ position: { lg: 'sticky' }, top: 90 }}>
                   <HospitalMap
                     userCoords={userCoords}
@@ -872,7 +889,7 @@ const HospitalSearch = () => {
                     radiusKm={radiusKm}
                     height="680px"
                   />
-                  <Typography variant="caption" color="textSecondary" display="block" sx={{ mt: 1, textAlign: 'center' }}>
+                  <Typography variant="caption" color="textSecondary" sx={{ display: 'block', mt: 1, textAlign: 'center' }}>
                     Map powered by OpenStreetMap contributors. Click any facility marker to preview details.
                   </Typography>
                 </Box>
@@ -886,7 +903,7 @@ const HospitalSearch = () => {
       {activeTab === 1 && (
         <Grid container spacing={3}>
           {/* Search Filter Panel */}
-          <Grid item xs={12} md={3}>
+          <Grid size={{ xs: 12, md: 3 }}>
             <Paper elevation={0} sx={{ p: 3, border: '1px solid #E2E8F0', borderRadius: '14px', bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
               <TextField
                 label="Hospital Name"
@@ -910,7 +927,7 @@ const HospitalSearch = () => {
                   <MenuItem key={d} value={d}>{d}</MenuItem>
                 ))}
               </TextField>
-              <Box display="flex" flexDirection="column" gap={1}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 <Button
                   variant={needIcu ? 'contained' : 'outlined'}
                   onClick={() => setNeedIcu(!needIcu)}
@@ -944,7 +961,7 @@ const HospitalSearch = () => {
           </Grid>
 
           {/* Network Results List */}
-          <Grid item xs={12} md={9}>
+          <Grid size={{ xs: 12, md: 9 }}>
             {networkError && (
               <Alert severity="error" sx={{ mb: 3, borderRadius: '10px' }}>
                 {networkError}
@@ -954,12 +971,12 @@ const HospitalSearch = () => {
             {networkLoading ? (
               <Grid container spacing={3}>
                 {[1, 2, 3, 4].map((item) => (
-                  <Grid item xs={12} sm={6} key={item}>
+                  <Grid key={item} size={{ xs: 12, sm: 6 }}>
                     <Card sx={{ border: '1px solid #E2E8F0', borderRadius: '12px', p: 3 }}>
                       <Skeleton variant="text" width="60%" height={32} />
                       <Skeleton variant="text" width="85%" height={20} sx={{ mb: 2 }} />
                       <Divider sx={{ my: 1.5 }} />
-                      <Box display="flex" gap={1}>
+                      <Box sx={{ display: 'flex', gap: 1 }}>
                         <Skeleton variant="rounded" width="50%" height={30} />
                         <Skeleton variant="rounded" width="50%" height={30} />
                       </Box>
@@ -968,17 +985,17 @@ const HospitalSearch = () => {
                 ))}
               </Grid>
             ) : networkHospitals.length === 0 ? (
-              <Box py={8} textAlign="center">
+              <Box sx={{ py: 8, textAlign: 'center' }}>
                 <Typography color="textSecondary">No registered network hospitals matching your criteria were found.</Typography>
               </Box>
             ) : (
               <Grid container spacing={3}>
                 {networkHospitals.map((h) => (
-                  <Grid item xs={12} sm={6} key={h._id}>
-                    <Card sx={{ border: '1px solid #E2E8F0', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', transition: 'all 0.2s ease', '&:hover': { borderColor: '#0F766E', boxShadow: '0 6px 20px rgba(15, 118, 110, 0.08)' } }}>
-                      <CardContent sx={{ p: 3 }}>
-                        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={0.5}>
-                          <Typography variant="h6" fontWeight="bold" color="#0F172A">
+                  <Grid key={h._id} size={{ xs: 12, sm: 6 }}>
+                    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', border: '1px solid #E2E8F0', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)', transition: 'all 0.2s ease', '&:hover': { borderColor: '#0F766E', boxShadow: '0 6px 20px rgba(15, 118, 110, 0.08)' } }}>
+                      <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 0.5 }}>
+                          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#0F172A' }}>
                             {h.name}
                           </Typography>
                           {h.distanceKm && (
@@ -990,13 +1007,13 @@ const HospitalSearch = () => {
                             />
                           )}
                         </Box>
-                        <Typography variant="body2" color="#64748B" sx={{ mb: 2 }}>{h.address}</Typography>
+                        <Typography variant="body2" sx={{ color: '#64748B', mb: 2 }}>{h.address}</Typography>
                         <Divider sx={{ my: 1.5 }} />
-                        <Box display="flex" justifyContent="space-between" mb={2}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
                           <Chip label={`ICU: ${h.beds?.icuAvailable} Left`} size="small" sx={{ bgcolor: h.beds?.icuAvailable > 0 ? '#E6F6F3' : '#FEE2E2', color: h.beds?.icuAvailable > 0 ? '#0F766E' : '#EF4444', fontWeight: 'bold' }} />
                           <Chip label={`ER Beds: ${h.beds?.emergencyAvailable} Left`} size="small" sx={{ bgcolor: h.beds?.emergencyAvailable > 0 ? '#E6F6F3' : '#FEE2E2', color: h.beds?.emergencyAvailable > 0 ? '#0F766E' : '#EF4444', fontWeight: 'bold' }} />
                         </Box>
-                        <Box display="flex" gap={1}>
+                        <Box sx={{ display: 'flex', gap: 1, mt: 'auto' }}>
                           <Button variant="contained" size="small" fullWidth startIcon={<CalendarMonth />} onClick={() => handleOpenBooking(h)} sx={{ bgcolor: '#0F766E', '&:hover': { bgcolor: '#0D9488' } }}>
                             Book Doctor
                           </Button>
@@ -1015,7 +1032,7 @@ const HospitalSearch = () => {
       )}
 
       {/* Manual Location Selection Dialog (Fallback when GPS denied / unavailable) */}
-      <Dialog open={manualModalOpen} onClose={() => setManualModalOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px', p: 1 } }}>
+      <Dialog open={manualModalOpen} onClose={() => setManualModalOpen(false)} maxWidth="sm" fullWidth slotProps={{ paper: { sx: { borderRadius: '16px', p: 1 } } }}>
         <DialogTitle sx={{ fontWeight: '800', color: '#0F172A' }}>
           Select Location Manually
         </DialogTitle>
@@ -1025,7 +1042,7 @@ const HospitalSearch = () => {
           </Typography>
 
           <form onSubmit={handleSearchManualQuery}>
-            <Box display="flex" gap={1} mb={2.5}>
+            <Box sx={{ display: 'flex', gap: 1, mb: 2.5 }}>
               <TextField
                 autoFocus
                 fullWidth
@@ -1046,10 +1063,10 @@ const HospitalSearch = () => {
           </form>
 
           {/* Quick Popular Locations */}
-          <Typography variant="caption" fontWeight="bold" color="#64748B" textTransform="uppercase" display="block" mb={1}>
+          <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#64748B', textTransform: 'uppercase', display: 'block', mb: 1 }}>
             Popular Cities & Healthcare Hubs
           </Typography>
-          <Box display="flex" flexWrap="wrap" gap={1} mb={3}>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
             {POPULAR_LOCATIONS.map((loc) => (
               <Chip
                 key={loc.name}
@@ -1064,10 +1081,10 @@ const HospitalSearch = () => {
           {/* Search Results */}
           {geocodedSuggestions.length > 0 && (
             <Box>
-              <Typography variant="caption" fontWeight="bold" color="#64748B" textTransform="uppercase" display="block" mb={1}>
+              <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#64748B', textTransform: 'uppercase', display: 'block', mb: 1 }}>
                 Matching Locations
               </Typography>
-              <Box display="flex" flexDirection="column" gap={1}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                 {geocodedSuggestions.map((sug, idx) => (
                   <Paper
                     key={idx}
@@ -1082,9 +1099,9 @@ const HospitalSearch = () => {
                       '&:hover': { borderColor: '#0F766E', bgcolor: '#F0FDFA' }
                     }}
                   >
-                    <Box display="flex" alignItems="center" gap={1}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <LocationOn sx={{ color: '#0F766E', fontSize: 18 }} />
-                      <Typography variant="body2" color="#0F172A" sx={{ lineHeight: 1.3 }}>
+                      <Typography variant="body2" sx={{ color: '#0F172A', lineHeight: 1.3 }}>
                         {sug.displayName}
                       </Typography>
                     </Box>
@@ -1111,36 +1128,37 @@ const HospitalSearch = () => {
       />
 
       {/* Doctor Booking Modal (Preserved existing feature) */}
-      <Dialog open={bookingOpen} onClose={() => setBookingOpen(false)} maxWidth="sm" fullWidth PaperProps={{ sx: { borderRadius: '16px' } }}>
+      <Dialog open={bookingOpen} onClose={() => setBookingOpen(false)} maxWidth="sm" fullWidth slotProps={{ paper: { sx: { borderRadius: '16px' } } }}>
         <DialogTitle sx={{ fontWeight: 'bold' }}>
           Book Doctor Appointment at {bookingHospital?.name}
         </DialogTitle>
         <DialogContent>
           {bookingSuccess && <Alert severity="success" sx={{ mb: 2 }}>{bookingSuccess}</Alert>}
           {bookingError && <Alert severity="error" sx={{ mb: 2 }}>{bookingError}</Alert>}
-          <Box display="flex" flexDirection="column" gap={2} mt={1}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
               select
               label="Select Doctor"
               size="small"
               fullWidth
               value={selectedDoctor}
-              onChange={(e) => setSelectedDoctor(e.target.value)}
+              onChange={(e) => { setSelectedDoctor(e.target.value); setBookingSlot(''); }}
             >
               {doctors.map((d) => (
                 <MenuItem key={d._id} value={d._id}>
                   Dr. {d.name} ({d.specialization}) - ₹{d.consultationFee || 500}
+                  {d.schedule?.days?.length ? ` · ${d.schedule.days.map((day) => day.slice(0, 3)).join(', ')}` : ''}
                 </MenuItem>
               ))}
             </TextField>
             <TextField
               type="date"
               label="Preferred Date"
-              InputLabelProps={{ shrink: true }}
               size="small"
               fullWidth
               value={bookingDate}
               onChange={(e) => setBookingDate(e.target.value)}
+              slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) } }}
             />
             <TextField
               select
@@ -1150,7 +1168,11 @@ const HospitalSearch = () => {
               value={bookingSlot}
               onChange={(e) => setBookingSlot(e.target.value)}
             >
-              {['10:00 AM - 10:30 AM', '11:00 AM - 11:30 AM', '02:00 PM - 02:30 PM', '04:00 PM - 04:30 PM'].map((s) => (
+              {/* The selected doctor's real schedule; the backend rejects slots the doctor does not offer. */}
+              {(doctors.find((d) => d._id === selectedDoctor)?.schedule?.slots?.length
+                ? doctors.find((d) => d._id === selectedDoctor).schedule.slots
+                : ['09:00 AM', '10:00 AM', '11:00 AM', '02:00 PM', '03:00 PM', '04:00 PM']
+              ).map((s) => (
                 <MenuItem key={s} value={s}>{s}</MenuItem>
               ))}
             </TextField>

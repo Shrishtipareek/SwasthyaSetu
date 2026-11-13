@@ -1,4 +1,16 @@
-# Logs
+# Dependencies (install with `npm install`; never commit them)
+node_modules/
+
+# Local environment files (copy from .env.example)
+.env
+.env.*
+.env.local
+!.env.example
+
+# Build output and logs
+dist/
+dist-ssr/
+*.local
 logs
 *.log
 npm-debug.log*
@@ -6,27 +18,19 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
-.env
 
-node_modules
+# Private project notes
+documentation.md
+final_year_project_defence_script.md
+questions.md
 
-dist
-dist-ssr
-*.local
-
+# OS / editor files
+.DS_Store
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
-*.suoPS 
-.gitignore
+*.suo
 *.ntvs*
 *.njsproj
 *.sln
-*.sw
-documentation.md 
-final_year_project_defence_script.md
-questions.md
-.env
-.env.*
-!.env.example
+*.sw?

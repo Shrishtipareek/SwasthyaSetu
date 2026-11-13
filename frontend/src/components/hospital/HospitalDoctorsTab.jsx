@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Grid,
   Paper,
@@ -11,12 +11,7 @@ import {
   TableCell,
   TableContainer,
   TableHead,
-  TableRow,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions
+  TableRow
 } from '@mui/material';
 
 const HospitalDoctorsTab = ({
@@ -28,9 +23,9 @@ const HospitalDoctorsTab = ({
 }) => {
   return (
     <Grid container spacing={4}>
-      <Grid item xs={12} md={5}>
+      <Grid size={{ xs: 12, md: 5 }}>
         <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '12px', bgcolor: '#ffffff' }}>
-          <Typography variant="h6" fontWeight="bold" color="#0F172A" mb={2}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#0F172A', mb: 2 }}>
             Add Doctor Profile
           </Typography>
           <form onSubmit={handleAddDoctor}>
@@ -83,13 +78,13 @@ const HospitalDoctorsTab = ({
         </Paper>
       </Grid>
 
-      <Grid item xs={12} md={7}>
+      <Grid size={{ xs: 12, md: 7 }}>
         <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '12px', bgcolor: '#ffffff' }}>
-          <Typography variant="h6" fontWeight="bold" color="#0F172A" mb={2}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#0F172A', mb: 2 }}>
             Recent Bookings / Appointments
           </Typography>
           {!recentAppointments || recentAppointments.length === 0 ? (
-            <Typography color="textSecondary" align="center" py={4}>
+            <Typography color="textSecondary" align="center" sx={{ py: 4 }}>
               No recent patient appointments recorded.
             </Typography>
           ) : (

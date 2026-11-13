@@ -1,72 +1,128 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Hospital = require('../models/Hospital');
+const { getJwtSecret } = require('../config/env');
+const { sendError, missingFields, isValidLocation, normalizeLocation, normalizeBloodGroup } = require('../utils/http');
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MIN_PASSWORD_LENGTH = 6;
 
 const generateToken = (id) => {
-  const secret = process.env.JWT_SECRET || 'swasthya_setu_secure_jwt_secret_key_9f8d7c6b5a4e3d2c1b0a';
-  return jwt.sign({ id }, secret, {
-    expiresIn: '30d',
+  return jwt.sign({ id }, getJwtSecret(), {
+    expiresIn: process.env.JWT_EXPIRE || '30d',
   });
 };
 
-const isValidEmail = (email) => {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+const normalizeEmail = (email) => (typeof email === 'string' ? email.trim().toLowerCase() : '');
+
+const validateCredentials = (email, password) => {
+  if (!EMAIL_REGEX.test(email)) return 'Please provide a valid email address.';
+  if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
+    return `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`;
+  }
+  return null;
 };
 
+const MEDICAL_INFO_FIELDS = [
+  'dob',
+  'gender',
+  'bloodGroup',
+  'allergies',
+  'chronicConditions',
+  'emergencyContactName',
+  'emergencyContactPhone',
+  'emergencyContactRelation',
+];
+
+const sanitizeMedicalInfo = (info) => {
+  if (!info || typeof info !== 'object') return undefined;
+  const clean = {};
+  MEDICAL_INFO_FIELDS.forEach((field) => {
+    if (info[field] !== undefined) clean[field] = info[field];
+  });
+  if (clean.bloodGroup !== undefined && clean.bloodGroup !== '' && clean.bloodGroup !== null) {
+    clean.bloodGroup = normalizeBloodGroup(clean.bloodGroup) || clean.bloodGroup;
+  }
+  ['allergies', 'chronicConditions'].forEach((field) => {
+    if (typeof clean[field] === 'string') {
+      clean[field] = clean[field].split(',').map((s) => s.trim()).filter(Boolean);
+    }
+  });
+  return clean;
+};
+
+// Fields a hospital account may edit on its own profile. verifiedStatus, user,
+// licenseNumber, inventory, etc. must NOT be editable through the profile endpoint.
+const EDITABLE_HOSPITAL_FIELDS = [
+  'name',
+  'address',
+  'emergencyPhone',
+  'contactPhone',
+  'website',
+  'hospitalType',
+  'facilities',
+  'departments',
+  'operatingHours',
+  'location',
+];
+
+const buildUserResponse = (user, extra = {}) => ({
+  _id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  phone: user.phone,
+  location: user.location,
+  medicalInfo: user.medicalInfo,
+  ...extra,
+});
+
+// @desc    Register a new user (Patient)
+// @route   POST /api/auth/register
+// @access  Public
 const registerUser = async (req, res) => {
   try {
-    const { name, email, password, role, phone, location, medicalInfo } = req.body;
+    const { name, password, phone, location, medicalInfo } = req.body;
+    const email = normalizeEmail(req.body.email);
 
-    if (!name || !email || !password || !phone) {
-      return res.status(400).json({ message: 'Name, email, password, and phone number are required.' });
+    const missing = missingFields({ ...req.body, email }, ['name', 'email', 'password', 'phone']);
+    if (missing.length) {
+      return res.status(400).json({ message: `Missing required fields: ${missing.join(', ')}` });
     }
-
-    if (!isValidEmail(email)) {
-      return res.status(400).json({ message: 'Please provide a valid email address.' });
-    }
-
-    if (typeof password !== 'string' || password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
-    }
+    const credError = validateCredentials(email, password);
+    if (credError) return res.status(400).json({ message: credError });
 
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({ message: 'User already exists' });
     }
 
+    // SECURITY: public registration can only create patient accounts. Previously any
+    // caller could send { role: 'admin' } and grant themselves admin rights.
     const user = await User.create({
-      name,
+      name: String(name).trim(),
       email,
       password,
-      role: role || 'patient',
+      role: 'patient',
       phone,
-      location: location || { lat: 28.6139, lng: 77.2090 },
-      medicalInfo
+      location: isValidLocation(location) ? normalizeLocation(location) : { lat: 28.6139, lng: 77.209 },
+      medicalInfo: sanitizeMedicalInfo(medicalInfo),
     });
 
-    if (user) {
-      res.status(201).json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone,
-        location: user.location,
-        token: generateToken(user._id),
-      });
-    } else {
-      res.status(400).json({ message: 'Invalid user data' });
-    }
+    res.status(201).json(buildUserResponse(user, { token: generateToken(user._id), hospitalProfile: null }));
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
+// @desc    Register a new Hospital (creates User + Hospital profile)
+// @route   POST /api/auth/register-hospital
+// @access  Public
 const registerHospital = async (req, res) => {
+  let createdUser = null;
   try {
     const {
       name,
-      email,
       password,
       phone,
       emergencyPhone,
@@ -77,69 +133,90 @@ const registerHospital = async (req, res) => {
       facilities,
       departments,
       operatingHours,
-      location
+      location,
     } = req.body;
+    const email = normalizeEmail(req.body.email);
 
-    if (!name || !email || !password || !phone || !licenseNumber || !address) {
-      return res.status(400).json({ message: 'Hospital name, email, password, phone, license number, and address are required.' });
+    const missing = missingFields({ ...req.body, email }, [
+      'name',
+      'email',
+      'password',
+      'phone',
+      'emergencyPhone',
+      'licenseNumber',
+      'address',
+    ]);
+    if (missing.length) {
+      return res.status(400).json({ message: `Missing required fields: ${missing.join(', ')}` });
     }
-
-    if (!isValidEmail(email)) {
-      return res.status(400).json({ message: 'Please provide a valid email address.' });
-    }
-
-    if (typeof password !== 'string' || password.length < 6) {
-      return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
-    }
+    const credError = validateCredentials(email, password);
+    if (credError) return res.status(400).json({ message: credError });
 
     const userExists = await User.findOne({ email });
     if (userExists) {
       return res.status(400).json({ message: 'User with this email already exists' });
     }
 
-    const user = await User.create({
+    const licenseExists = await Hospital.findOne({ licenseNumber: String(licenseNumber).trim() });
+    if (licenseExists) {
+      return res.status(400).json({ message: 'A hospital with this license number is already registered' });
+    }
+
+    const hospitalLocation = isValidLocation(location) ? normalizeLocation(location) : { lat: 28.6139, lng: 77.209 };
+
+    // Create User first
+    createdUser = await User.create({
       name,
       email,
       password,
       role: 'hospital',
-      phone
+      phone,
+      location: hospitalLocation,
     });
 
+    // Create Hospital Profile
     const hospital = await Hospital.create({
-      user: user._id,
+      user: createdUser._id,
       name,
-      licenseNumber,
+      licenseNumber: String(licenseNumber).trim(),
       address,
       emergencyPhone,
       contactPhone: phone,
       website,
       hospitalType,
-      facilities: facilities || ['Emergency Room', 'Pharmacy', 'Diagnostic Lab'],
-      departments: departments || ['General Medicine', 'Pediatrics', 'Cardiology', 'Orthopedics'],
+      facilities: Array.isArray(facilities) && facilities.length ? facilities : undefined,
+      departments: Array.isArray(departments) && departments.length ? departments : undefined,
       operatingHours: operatingHours || '24/7',
-      location: location || { lat: 28.6139, lng: 77.2090 },
-      verifiedStatus: 'pending'
+      location: hospitalLocation,
+      verifiedStatus: 'pending',
     });
 
-    res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      token: generateToken(user._id),
-      hospitalProfile: hospital
-    });
+    res.status(201).json(
+      buildUserResponse(createdUser, {
+        token: generateToken(createdUser._id),
+        hospitalProfile: hospital,
+      })
+    );
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    // Roll back the orphan user account if the hospital profile could not be created,
+    // otherwise the email is "taken" but the account is unusable.
+    if (createdUser) {
+      await User.deleteOne({ _id: createdUser._id }).catch(() => {});
+    }
+    sendError(res, error);
   }
 };
 
+// @desc    Auth user & get token
+// @route   POST /api/auth/login
+// @access  Public
 const authUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = normalizeEmail(req.body.email);
+    const { password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ message: 'Email and password are required.' });
+      return res.status(400).json({ message: 'Email and password are required' });
     }
 
     const user = await User.findOne({ email }).select('+password');
@@ -150,105 +227,93 @@ const authUser = async (req, res) => {
         hospitalProfile = await Hospital.findOne({ user: user._id });
       }
 
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone,
-        location: user.location,
-        medicalInfo: user.medicalInfo,
-        token: generateToken(user._id),
-        hospitalProfile
-      });
+      res.json(buildUserResponse(user, { token: generateToken(user._id), hospitalProfile }));
     } else {
       res.status(401).json({ message: 'Invalid email or password' });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
+// @desc    Get user profile
+// @route   GET /api/auth/profile
+// @access  Private
 const getUserProfile = async (req, res) => {
-  try {
-    const user = await User.findById(req.user._id).select('-password');
-
-    if (user) {
-      let hospitalProfile = null;
-      if (user.role === 'hospital') {
-        hospitalProfile = await Hospital.findOne({ user: user._id });
-      }
-
-      res.json({
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        phone: user.phone,
-        location: user.location,
-        medicalInfo: user.medicalInfo,
-        hospitalProfile
-      });
-    } else {
-      res.status(404).json({ message: 'User not found' });
-    }
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-const updateUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
 
     if (user) {
-      user.name = req.body.name || user.name;
-      user.phone = req.body.phone || user.phone;
-      if (req.body.location) {
-        user.location = req.body.location;
-      }
-
-      if (user.role === 'patient' && req.body.medicalInfo) {
-        user.medicalInfo = {
-          ...user.medicalInfo,
-          ...req.body.medicalInfo
-        };
-      }
-
-      if (req.body.password) {
-        if (typeof req.body.password !== 'string' || req.body.password.length < 6) {
-          return res.status(400).json({ message: 'New password must be at least 6 characters long.' });
-        }
-        user.password = req.body.password;
-      }
-
-      const updatedUser = await user.save();
-
       let hospitalProfile = null;
       if (user.role === 'hospital') {
         hospitalProfile = await Hospital.findOne({ user: user._id });
-        if (hospitalProfile && req.body.hospitalProfile) {
-          Object.assign(hospitalProfile, req.body.hospitalProfile);
-          await hospitalProfile.save();
-        }
       }
 
-      res.json({
-        _id: updatedUser._id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        role: updatedUser.role,
-        phone: updatedUser.phone,
-        location: updatedUser.location,
-        medicalInfo: updatedUser.medicalInfo,
-        token: generateToken(updatedUser._id),
-        hospitalProfile
-      });
+      res.json(buildUserResponse(user, { hospitalProfile }));
     } else {
       res.status(404).json({ message: 'User not found' });
     }
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
+  }
+};
+
+// @desc    Update user profile
+// @route   PUT /api/auth/profile
+// @access  Private
+const updateUserProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (typeof req.body.name === 'string' && req.body.name.trim()) user.name = req.body.name.trim();
+    if (typeof req.body.phone === 'string' && req.body.phone.trim()) user.phone = req.body.phone.trim();
+    if (req.body.location !== undefined) {
+      if (!isValidLocation(req.body.location)) {
+        return res.status(400).json({ message: 'Location must contain valid numeric lat and lng values.' });
+      }
+      user.location = normalizeLocation(req.body.location);
+    }
+
+    if (user.role === 'patient' && req.body.medicalInfo) {
+      // Merge with the existing values. Spreading the Mongoose sub-document directly
+      // (the previous code) copied Mongoose internals instead of the stored fields.
+      const current = user.medicalInfo ? user.medicalInfo.toObject?.() || { ...user.medicalInfo } : {};
+      user.medicalInfo = { ...current, ...sanitizeMedicalInfo(req.body.medicalInfo) };
+    }
+
+    if (req.body.password) {
+      if (typeof req.body.password !== 'string' || req.body.password.length < MIN_PASSWORD_LENGTH) {
+        return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long.` });
+      }
+      user.password = req.body.password;
+    }
+
+    const updatedUser = await user.save();
+
+    let hospitalProfile = null;
+    if (user.role === 'hospital') {
+      hospitalProfile = await Hospital.findOne({ user: user._id });
+      if (hospitalProfile && req.body.hospitalProfile && typeof req.body.hospitalProfile === 'object') {
+        EDITABLE_HOSPITAL_FIELDS.forEach((field) => {
+          const value = req.body.hospitalProfile[field];
+          if (value === undefined) return;
+          if (field === 'location') {
+            if (isValidLocation(value)) hospitalProfile.location = normalizeLocation(value);
+            return;
+          }
+          hospitalProfile[field] = value;
+        });
+        await hospitalProfile.save();
+      }
+    }
+
+    res.json(buildUserResponse(updatedUser, { token: generateToken(updatedUser._id), hospitalProfile }));
+  } catch (error) {
+    sendError(res, error);
   }
 };
 

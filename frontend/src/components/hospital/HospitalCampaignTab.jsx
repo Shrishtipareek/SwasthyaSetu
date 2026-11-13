@@ -12,9 +12,9 @@ const HospitalCampaignTab = ({
 }) => {
   return (
     <Grid container spacing={4}>
-      <Grid item xs={12} md={6}>
+      <Grid size={{ xs: 12, md: 6 }}>
         <Paper elevation={0} sx={{ p: 3, border: '1px solid #e2e8f0', borderRadius: '12px', bgcolor: '#ffffff' }}>
-          <Typography variant="h6" fontWeight="bold" color="#0F172A" mb={2}>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#0F172A', mb: 2 }}>
             Publish Health Campaign / Drive
           </Typography>
           <form onSubmit={handleCreateCampaign}>
@@ -52,12 +52,12 @@ const HospitalCampaignTab = ({
             <TextField
               label="Date"
               type="date"
-              InputLabelProps={{ shrink: true }}
               fullWidth
               required
               value={campDate}
               onChange={(e) => setCampDate(e.target.value)}
               sx={{ mb: 2 }}
+              slotProps={{ inputLabel: { shrink: true } }}
             />
             <TextField
               label="Time Range (e.g. 09:00 AM - 04:00 PM)"

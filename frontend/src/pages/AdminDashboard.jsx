@@ -57,12 +57,12 @@ const AdminDashboard = () => {
     }
   };
 
-  if (loading) return <Typography align="center" py={10}>Loading Administrator Dashboard...</Typography>;
+  if (loading) return <Typography align="center" sx={{ py: 10 }}>Loading Administrator Dashboard...</Typography>;
 
   return (
     <Container maxWidth="lg" sx={{ py: 6 }}>
-      <Box mb={4}>
-        <Typography variant="h4" fontWeight="bold" color="#0f172a">
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h4" sx={{ fontWeight: 'bold', color: '#0f172a' }}>
           Platform Management & Audits
         </Typography>
         <Typography variant="body2" color="textSecondary">
@@ -78,12 +78,12 @@ const AdminDashboard = () => {
           { label: 'Pending Approvals', value: stats?.pendingHospitalsCount, icon: <VerifiedUser />, color: '#0F766E' },
           { label: 'Scheduled Appointments', value: stats?.appointmentsCount, icon: <CalendarMonth />, color: '#0D9488' }
         ].map((card, idx) => (
-          <Grid item xs={12} sm={6} md={3} key={idx}>
+          <Grid key={idx} size={{ xs: 12, sm: 6, md: 3 }}>
             <Card sx={{ borderLeft: `5px solid ${card.color}`, borderRadius: '12px', borderTop: '1px solid #E2E8F0', borderRight: '1px solid #E2E8F0', borderBottom: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
               <CardContent sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Box>
-                  <Typography variant="h4" fontWeight="800" color="#0F172A">{card.value}</Typography>
-                  <Typography variant="body2" color="#64748B">{card.label}</Typography>
+                  <Typography variant="h4" sx={{ fontWeight: '800', color: '#0F172A' }}>{card.value}</Typography>
+                  <Typography variant="body2" sx={{ color: '#64748B' }}>{card.label}</Typography>
                 </Box>
                 <Avatar sx={{ bgcolor: '#E6F6F3', color: card.color }}>{card.icon}</Avatar>
               </CardContent>
@@ -96,13 +96,13 @@ const AdminDashboard = () => {
 
       {/* Hospital verification list */}
       <Paper elevation={0} sx={{ p: 3, border: '1px solid #E2E8F0', borderRadius: '14px', bgcolor: '#ffffff', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
-        <Typography variant="h6" fontWeight="bold" mb={2}>
+        <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 2 }}>
           Hospital License Registrations
         </Typography>
         <Divider sx={{ mb: 2 }} />
 
         {hospitals.length === 0 ? (
-          <Typography color="textSecondary" align="center" py={4}>No hospital accounts found.</Typography>
+          <Typography color="textSecondary" align="center" sx={{ py: 4 }}>No hospital accounts found.</Typography>
         ) : (
           <TableContainer>
             <Table size="small">
@@ -131,7 +131,7 @@ const AdminDashboard = () => {
                     </TableCell>
                     <TableCell>
                       {h.verifiedStatus === 'pending' && (
-                        <Box display="flex" gap={1}>
+                        <Box sx={{ display: 'flex', gap: 1 }}>
                           <Button variant="contained" color="success" size="small" onClick={() => handleVerify(h._id, 'verified')}>
                             Approve
                           </Button>

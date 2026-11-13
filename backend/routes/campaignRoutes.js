@@ -7,6 +7,6 @@ router.route('/')
   .post(protect, authorize('hospital', 'admin'), createCampaign)
   .get(getCampaigns);
 
-router.post('/:id/register', protect, registerForCampaign);
+router.post('/:id/register', protect, authorize('patient'), registerForCampaign);
 
 module.exports = router;

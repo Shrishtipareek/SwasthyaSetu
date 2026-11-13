@@ -11,11 +11,13 @@ const UserSchema = new mongoose.Schema({
     required: true,
     unique: true,
     lowercase: true,
+    trim: true,
   },
   password: {
     type: String,
     required: true,
-    select: false,
+    minlength: 6,
+    select: false, // never returned by queries unless explicitly requested
   },
   role: {
     type: String,
@@ -27,10 +29,10 @@ const UserSchema = new mongoose.Schema({
     required: true,
   },
   location: {
-    lat: { type: Number, default: 28.6139 },
+    lat: { type: Number, default: 28.6139 }, // Default to New Delhi coordinates
     lng: { type: Number, default: 77.2090 }
   },
-  
+  // Patient medical info fields
   medicalInfo: {
     dob: { type: Date },
     gender: { type: String },
@@ -41,19 +43,27 @@ const UserSchema = new mongoose.Schema({
     emergencyContactPhone: { type: String },
     emergencyContactRelation: { type: String }
   }
-}, { timestamps: true });
+}, {
+  timestamps: true,
+  toJSON: {
+    transform: (doc, ret) => {
+      delete ret.password;
+      return ret;
+    }
+  }
+});
 
-UserSchema.index({ 'location': '2d' }); 
+UserSchema.index({ 'location': '2d' }); // index location for map searches
 
-UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+UserSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-  next();
 });
 
 UserSchema.methods.comparePassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  if (!enteredPassword || !this.password) return false;
+  return bcrypt.compare(String(enteredPassword), this.password);
 };
 
 module.exports = mongoose.model('User', UserSchema);

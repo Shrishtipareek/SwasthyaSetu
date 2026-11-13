@@ -17,7 +17,7 @@ const AppointmentSchema = new mongoose.Schema({
     required: true,
   },
   date: {
-    type: String, 
+    type: String, // format YYYY-MM-DD
     required: true,
   },
   timeSlot: {
@@ -44,6 +44,11 @@ const AppointmentSchema = new mongoose.Schema({
 
 AppointmentSchema.index({ patient: 1 });
 AppointmentSchema.index({ hospital: 1 });
-AppointmentSchema.index({ doctor: 1, date: 1, timeSlot: 1 }, { unique: true, partialFilterExpression: { status: 'upcoming' } }); 
+// Prevent double bookings of an ACTIVE slot only. Cancelled appointments must not
+// block the slot from being booked again (the old unconditional unique index did).
+AppointmentSchema.index(
+  { doctor: 1, date: 1, timeSlot: 1 },
+  { unique: true, name: 'unique_active_doctor_slot', partialFilterExpression: { status: 'upcoming' } }
+);
 
 module.exports = mongoose.model('Appointment', AppointmentSchema);

@@ -41,14 +41,14 @@ const PatientRegisterForm = ({
         onChange={(e) => setName(e.target.value)}
         required
         sx={{ mb: 2 }}
-        InputProps={{
+        slotProps={{ input: {
           sx: fieldInputStyle,
           startAdornment: (
             <InputAdornment position="start">
               <PersonOutlined sx={{ color: '#0F766E', fontSize: 20 }} />
             </InputAdornment>
           ),
-        }}
+        } }}
       />
 
       <TextField
@@ -60,14 +60,14 @@ const PatientRegisterForm = ({
         onChange={(e) => setEmail(e.target.value)}
         required
         sx={{ mb: 2 }}
-        InputProps={{
+        slotProps={{ input: {
           sx: fieldInputStyle,
           startAdornment: (
             <InputAdornment position="start">
               <EmailOutlined sx={{ color: '#0F766E', fontSize: 20 }} />
             </InputAdornment>
           ),
-        }}
+        } }}
       />
 
       <TextField
@@ -78,68 +78,67 @@ const PatientRegisterForm = ({
         onChange={(e) => setPhone(e.target.value)}
         required
         sx={{ mb: 2 }}
-        InputProps={{
+        slotProps={{ input: {
           sx: fieldInputStyle,
           startAdornment: (
             <InputAdornment position="start">
               <PhoneOutlined sx={{ color: '#0F766E', fontSize: 20 }} />
             </InputAdornment>
           ),
-        }}
+        } }}
       />
 
       <Grid container spacing={2} sx={{ mb: 2 }}>
-        <Grid item xs={12} sm={4}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <TextField
             select
             fullWidth
             label="Gender"
             value={gender}
             onChange={(e) => setGender(e.target.value)}
-            InputProps={{ sx: fieldInputStyle }}
+            slotProps={{ input: { sx: fieldInputStyle } }}
           >
             <MenuItem value="Male">Male</MenuItem>
             <MenuItem value="Female">Female</MenuItem>
             <MenuItem value="Other">Other</MenuItem>
           </TextField>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <TextField
             select
             fullWidth
             label="Blood Group"
             value={bloodGroup}
             onChange={(e) => setBloodGroup(e.target.value)}
-            InputProps={{
+            slotProps={{ input: {
               sx: fieldInputStyle,
               startAdornment: (
                 <InputAdornment position="start">
                   <MedicalServicesOutlined sx={{ color: '#DC2626', fontSize: 18 }} />
                 </InputAdornment>
               ),
-            }}
+            } }}
           >
             {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((grp) => (
               <MenuItem key={grp} value={grp}>{grp}</MenuItem>
             ))}
           </TextField>
         </Grid>
-        <Grid item xs={12} sm={4}>
+        <Grid size={{ xs: 12, sm: 4 }}>
           <TextField
             fullWidth
             label="Date of Birth"
             type="date"
-            InputLabelProps={{ shrink: true }}
             value={dob}
             onChange={(e) => setDob(e.target.value)}
-            InputProps={{
+            slotProps={{ inputLabel: { shrink: true }, input: {
               sx: fieldInputStyle,
               startAdornment: (
                 <InputAdornment position="start">
                   <CalendarTodayOutlined sx={{ color: '#64748B', fontSize: 18 }} />
                 </InputAdornment>
               ),
-            }}
+            } }}
           />
         </Grid>
       </Grid>
@@ -154,7 +153,7 @@ const PatientRegisterForm = ({
         required
         helperText="Minimum 6 characters with letters and numbers"
         sx={{ mb: 3 }}
-        InputProps={{
+        slotProps={{ input: {
           sx: fieldInputStyle,
           startAdornment: (
             <InputAdornment position="start">
@@ -168,7 +167,7 @@ const PatientRegisterForm = ({
               </IconButton>
             </InputAdornment>
           ),
-        }}
+        } }}
       />
 
       <Button

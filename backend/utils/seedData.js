@@ -6,6 +6,13 @@ const Doctor = require('../models/Doctor');
 const Ambulance = require('../models/Ambulance');
 const BloodDonor = require('../models/BloodDonor');
 const HealthCampaign = require('../models/HealthCampaign');
+const Appointment = require('../models/Appointment');
+const EmergencyRequest = require('../models/EmergencyRequest');
+const ResourceRequest = require('../models/ResourceRequest');
+const Notification = require('../models/Notification');
+const AIConversation = require('../models/AIConversation');
+const MedicalDocument = require('../models/MedicalDocument');
+const { isoDateFromToday } = require('./http');
 
 dotenv.config();
 
@@ -275,13 +282,21 @@ const seedDatabase = async () => {
     await mongoose.connect(mongoUri);
     console.log('Connected to MongoDB for seeding...');
 
-    // Clear existing data
-    await User.deleteMany({});
-    await Hospital.deleteMany({});
-    await Doctor.deleteMany({});
-    await Ambulance.deleteMany({});
-    await BloodDonor.deleteMany({});
-    await HealthCampaign.deleteMany({});
+    // Clear existing data. Every collection that references users / hospitals /
+    // doctors is cleared too; previously appointments, emergencies, requests and
+    // notifications survived a re-seed and pointed at deleted records.
+    const models = [
+      User, Hospital, Doctor, Ambulance, BloodDonor, HealthCampaign,
+      Appointment, EmergencyRequest, ResourceRequest, Notification, AIConversation, MedicalDocument,
+    ];
+    for (const Model of models) {
+      await Model.deleteMany({});
+    }
+    // Apply current index definitions (e.g. the appointment slot index that now only
+    // applies to upcoming appointments) to databases created by older versions.
+    for (const Model of models) {
+      await Model.syncIndexes();
+    }
 
     console.log('Cleared existing collections.');
 
@@ -429,15 +444,18 @@ const seedDatabase = async () => {
     }
     console.log('Voluntary Blood Donors seeded.');
 
-    // 7. Seed Health Campaigns
+    // 7. Seed Health Campaigns (dates relative to today so they are always upcoming;
+    // hard-coded dates had already passed and the drives showed as expired)
     await HealthCampaign.create({
       hospital: hospitalsList[0]._id, // AIIMS
       title: "Mega Blood Donation Camp",
       description: "Join us for our annual blood donation camp to save lives in emergency situations. Free health screening checks for all donors.",
       type: "blood_camp",
-      date: "2026-09-15",
+      date: isoDateFromToday(14),
       time: "09:00 AM - 05:00 PM",
-      venue: "AIIMS Main Auditorium Area, New Delhi"
+      venue: "AIIMS Main Auditorium Area, New Delhi",
+      organizer: hospitalsList[0].name,
+      status: "active"
     });
 
     await HealthCampaign.create({
@@ -445,16 +463,24 @@ const seedDatabase = async () => {
       title: "Free Vaccination Drive",
       description: "Hepatitis B and Influenza vaccination drive for senior citizens and young children.",
       type: "vaccination",
-      date: "2026-10-10",
+      date: isoDateFromToday(30),
       time: "10:00 AM - 03:00 PM",
-      venue: "Apollo Hospital Complex, New Delhi"
+      venue: "Apollo Hospital Complex, New Delhi",
+      organizer: hospitalsList[1].name,
+      status: "upcoming"
     });
     console.log('Health Campaigns seeded.');
 
     console.log('Database Seeding Completed Successfully!');
+    console.log('\nDemo logins:');
+    console.log(`  Admin    : ${superadmin.email} / adminpassword`);
+    console.log(`  Patient  : ${patientUser.email} / password123`);
+    console.log(`  Hospital : ${hospitalsData[0].email.toLowerCase()} / hospitalpassword (same password for every seeded hospital)`);
+    await mongoose.connection.close();
     process.exit(0);
   } catch (error) {
     console.error('Error seeding database:', error.message);
+    await mongoose.connection.close().catch(() => {});
     process.exit(1);
   }
 };

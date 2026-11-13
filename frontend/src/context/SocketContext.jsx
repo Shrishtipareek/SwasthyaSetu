@@ -1,50 +1,40 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
+import { SOCKET_URL } from '../services/api';
 
 const SocketContext = createContext();
 
 export const SocketProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const { user } = useAuth();
+  const userId = user?._id;
+  const hospitalId = user?.hospitalProfile?._id;
 
+  // (Re)connect whenever the logged-in account changes. The server authenticates
+  // the socket with the JWT sent in the handshake and only then allows it into the
+  // user's / hospital's private rooms, so a socket opened before login (or with an
+  // old token) would never receive notifications.
   useEffect(() => {
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || (
-      import.meta.env.VITE_API_URL 
-        ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '') 
-        : 'http://localhost:5000'
-    );
-
-    const token = localStorage.getItem('token');
-    const newSocket = io(socketUrl, {
+    const newSocket = io(SOCKET_URL, {
+      // WebSocket first, long-polling as a fallback for networks that block WebSockets.
       transports: ['websocket', 'polling'],
-      auth: { token: token || '' },
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000
+      // Evaluated on every (re)connection, so the current token is always sent.
+      auth: (cb) => cb({ token: localStorage.getItem('token') || undefined }),
     });
 
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
-      console.log('Connected to SwasthyaSetu real-time socket network:', newSocket.id);
+      console.log('Connected to SwasthyaSetu real-time socket network');
+      // The server already auto-joins these rooms for authenticated sockets;
+      // re-joining after a reconnect is harmless.
+      if (userId) newSocket.emit('join_room', userId);
+      if (hospitalId) newSocket.emit('join_room', hospitalId);
     });
 
-    return () => {
-      newSocket.close();
-    };
-  }, [user?._id]);
-
-  useEffect(() => {
-    if (socket && user) {
-      // Join room for user's own updates
-      socket.emit('join_room', user._id);
-
-      // If hospital user, also join room for hospital profile updates
-      if (user.role === 'hospital' && user.hospitalProfile) {
-        socket.emit('join_room', user.hospitalProfile._id);
-      }
-    }
-  }, [socket, user]);
+    return () => newSocket.close();
+  }, [userId, hospitalId]);
 
   return (
     <SocketContext.Provider value={socket}>

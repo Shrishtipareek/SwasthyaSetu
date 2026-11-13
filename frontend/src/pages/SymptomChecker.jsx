@@ -88,12 +88,12 @@ const SymptomChecker = ({ onEmergencyClick }) => {
         }}
       >
         <Box sx={{ position: 'relative', zIndex: 2, maxWidth: '750px' }}>
-          <Box display="inline-flex" alignItems="center" gap={1} px={2} py={0.6} borderRadius="20px" bgcolor="rgba(255, 255, 255, 0.18)" mb={2}>
+          <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, px: 2, py: 0.6, borderRadius: '20px', bgcolor: 'rgba(255, 255, 255, 0.18)', mb: 2 }}>
             <SmartToy sx={{ fontSize: 20, color: '#5EEAD4' }} />
-            <Typography variant="caption" fontWeight="bold" color="#FFFFFF">CareAI Clinical Triage Platform</Typography>
+            <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#FFFFFF' }}>CareAI Clinical Triage Platform</Typography>
           </Box>
 
-          <Typography variant="h3" fontWeight="800" sx={{ fontSize: { xs: '1.8rem', md: '2.5rem' }, mb: 1.5, letterSpacing: '-0.02em' }}>
+          <Typography variant="h3" sx={{ fontWeight: '800', fontSize: { xs: '1.8rem', md: '2.5rem' }, mb: 1.5, letterSpacing: '-0.02em' }}>
             AI Health Symptom Checker
           </Typography>
           <Typography variant="body1" sx={{ color: '#CCFBF1', fontSize: '1.05rem', lineHeight: 1.6 }}>
@@ -104,7 +104,7 @@ const SymptomChecker = ({ onEmergencyClick }) => {
 
       <Grid container spacing={4}>
         {/* Input Column */}
-        <Grid item xs={12} md={assessment ? 5 : 8} sx={{ mx: assessment ? 0 : 'auto', transition: 'all 0.3s ease' }}>
+        <Grid sx={{ mx: assessment ? 0 : 'auto', transition: 'all 0.3s ease' }} size={{ xs: 12, md: assessment ? 5 : 8 }}>
           <Alert
             severity="warning"
             sx={{
@@ -130,15 +130,15 @@ const SymptomChecker = ({ onEmergencyClick }) => {
               boxShadow: '0 2px 12px rgba(15, 23, 42, 0.04)'
             }}
           >
-            <Typography variant="h6" fontWeight="700" color="#0F2C59" mb={1}>
+            <Typography variant="h6" sx={{ fontWeight: '700', color: '#0F2C59', mb: 1 }}>
               Describe Your Symptoms
             </Typography>
-            <Typography variant="body2" color="#64748B" mb={2.5}>
+            <Typography variant="body2" sx={{ color: '#64748B', mb: 2.5 }}>
               Select common symptoms below or type out how you are feeling in detail:
             </Typography>
 
             {/* Quick Symptom Chips */}
-            <Box display="flex" flexWrap="wrap" gap={1} mb={2.5}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2.5 }}>
               {quickSymptoms.map((sym, idx) => (
                 <Chip
                   key={idx}
@@ -166,7 +166,6 @@ const SymptomChecker = ({ onEmergencyClick }) => {
               placeholder="e.g. I have had a temperature of 101°F for two days with severe sore throat and body ache..."
               value={symptomText}
               onChange={(e) => setSymptomText(e.target.value.slice(0, 1000))}
-              inputProps={{ maxLength: 1000 }}
               helperText={`${symptomText.length}/1000 characters`}
               sx={{
                 mb: 2.5,
@@ -176,11 +175,12 @@ const SymptomChecker = ({ onEmergencyClick }) => {
                   fontSize: '0.95rem'
                 }
               }}
+              slotProps={{ htmlInput: { maxLength: 1000 } }}
             />
 
             {errorMsg && <Alert severity="error" sx={{ mb: 2.5, borderRadius: '10px' }}>{errorMsg}</Alert>}
 
-            <Box display="flex" gap={2}>
+            <Box sx={{ display: 'flex', gap: 2 }}>
               <Button
                 variant="contained"
                 fullWidth
@@ -216,7 +216,7 @@ const SymptomChecker = ({ onEmergencyClick }) => {
 
         {/* Results Column */}
         {assessment && (
-          <Grid item xs={12} md={7}>
+          <Grid size={{ xs: 12, md: 7 }}>
             <Card
               elevation={0}
               sx={{
@@ -234,7 +234,7 @@ const SymptomChecker = ({ onEmergencyClick }) => {
                   icon={<WarningIcon sx={{ fontSize: 28 }} />}
                   sx={{ mb: 3, borderRadius: '12px', bgcolor: '#FEE2E2', color: '#991B1B', fontWeight: '700' }}
                 >
-                  <Typography variant="subtitle1" fontWeight="800">EMERGENCY WARNING DETECTED</Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: '800' }}>EMERGENCY WARNING DETECTED</Typography>
                   CareAI detected potential critical emergency symptoms. Seek medical care immediately.
                 </Alert>
               ) : (
@@ -243,22 +243,22 @@ const SymptomChecker = ({ onEmergencyClick }) => {
                   icon={<CheckCircle sx={{ fontSize: 28, color: '#0F766E' }} />}
                   sx={{ mb: 3, borderRadius: '12px', bgcolor: '#F0FDFA', color: '#0F766E', fontWeight: '700', border: '1px solid #CCFBF1' }}
                 >
-                  <Typography variant="subtitle1" fontWeight="800">CareAI Triage Assessment Completed</Typography>
+                  <Typography variant="subtitle1" sx={{ fontWeight: '800' }}>CareAI Triage Assessment Completed</Typography>
                   Preliminary guidance based on reported symptoms.
                 </Alert>
               )}
 
-              <Typography variant="h6" fontWeight="800" color="#0F2C59" mb={1.5}>
+              <Typography variant="h6" sx={{ fontWeight: '800', color: '#0F2C59', mb: 1.5 }}>
                 Analysis & Clinical Guidance
               </Typography>
-              <Typography variant="body1" color="#334155" sx={{ whitespace: 'pre-line', lineHeight: 1.7, mb: 3 }}>
+              <Typography variant="body1" sx={{ color: '#334155', whitespace: 'pre-line', lineHeight: 1.7, mb: 3 }}>
                 {assessment.reply}
               </Typography>
 
               <Divider sx={{ my: 2.5 }} />
 
               {/* Action Buttons */}
-              <Box display="flex" flexWrap="wrap" gap={2}>
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                 {assessment.isEmergency && (
                   <Button
                     variant="contained"
@@ -283,7 +283,7 @@ const SymptomChecker = ({ onEmergencyClick }) => {
                 </Button>
               </Box>
 
-              <Typography variant="caption" color="#94A3B8" display="block" mt={3}>
+              <Typography variant="caption" sx={{ color: '#94A3B8', display: 'block', mt: 3 }}>
                 * Disclaimer: CareAI provides preliminary information only and is not a substitute for professional medical diagnosis or treatment.
               </Typography>
             </Card>
