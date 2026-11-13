@@ -18,7 +18,27 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
-*.suo
+*.suoPS C:\Users\Shrishti\OneDrive\projects\SwasthyaSetu> git pull --rebase origin main
+From https://github.com/Shrishtipareek/SwasthyaSetu
+ * branch            main       -> FETCH_HEAD
+fatal: It seems that there is already a rebase-merge directory, and
+I wonder if you are in the middle of another rebase.  If that is the
+case, please try
+        git rebase (--continue | --abort | --skip)
+If that is not the case, please
+        rm -fr ".git/rebase-merge"
+and run me again.  I am stopping in case you still have something
+valuable there.
+
+PS C:\Users\Shrishti\OneDrive\projects\SwasthyaSetu> git push origin main
+To https://github.com/Shrishtipareek/SwasthyaSetu.git
+ ! [rejected]        main -> main (non-fast-forward)
+error: failed to push some refs to 'https://github.com/Shrishtipareek/SwasthyaSetu.git'       
+hint: Updates were rejected because a pushed branch tip is behind its remote
+hint: counterpart. If you want to integrate the remote changes, use 'git pull'
+hint: before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+PS C:\Users\Shrishti\OneDrive\projects\SwasthyaSetu> 
 *.ntvs*
 *.njsproj
 *.sln
