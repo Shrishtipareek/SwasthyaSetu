@@ -1,31 +1,18 @@
 const express = require('express');
 const router = express.Router();
-const jwt = require('jsonwebtoken');
 const {
   registerDonor,
   getMyDonorProfile,
   updateMyDonorProfile,
+  getDonors,
   removeDonorRegistration,
-  getDonors
 } = require('../controllers/bloodDonorController');
-const { protect } = require('../middleware/authMiddleware');
-
-const optionalAuth = (req, res, next) => {
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    try {
-      const token = req.headers.authorization.split(' ')[1];
-      const secret = process.env.JWT_SECRET || 'swasthya_setu_secure_jwt_secret_key_9f8d7c6b5a4e3d2c1b0a';
-      req.user = jwt.verify(token, secret);
-    } catch (e) {
-      // Proceed without user
-    }
-  }
-  next();
-};
+const { protect, optionalProtect, authorize } = require('../middleware/authMiddleware');
 
 router.route('/')
-  .post(protect, registerDonor)
-  .get(optionalAuth, getDonors);
+  .post(protect, authorize('patient'), registerDonor)
+  // Public, but contact details are only unmasked for logged-in users.
+  .get(optionalProtect, getDonors);
 
 router.route('/me')
   .get(protect, getMyDonorProfile)

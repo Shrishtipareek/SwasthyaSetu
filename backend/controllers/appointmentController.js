@@ -1,85 +1,123 @@
 const Appointment = require('../models/Appointment');
 const Doctor = require('../models/Doctor');
 const Hospital = require('../models/Hospital');
-const Notification = require('../models/Notification');
+const { notify, emitTo } = require('../utils/notify');
+const { sendError, isValidObjectId, isValidISODate, todayISO, parsePagination } = require('../utils/http');
 
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const BOOKING_SOURCES = Appointment.schema.path('bookingSource').enumValues;
+const SLOT_TAKEN_MESSAGE = 'This time slot has already been booked. Please choose another slot.';
+
+/** "02:00 PM" -> 840 so appointments sort chronologically (string sort put PM before AM). */
+const slotToMinutes = (slot) => {
+  const m = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(String(slot || '').trim());
+  if (!m) return Number.MAX_SAFE_INTEGER;
+  let hours = Number(m[1]) % 12;
+  if (m[3].toUpperCase() === 'PM') hours += 12;
+  return hours * 60 + Number(m[2]);
+};
+
+const clean = (value, max = 1000) => (typeof value === 'string' && value.trim() ? value.trim().slice(0, max) : undefined);
+
+// @desc    Create a new appointment
+// @route   POST /api/appointments
+// @access  Private (Patient only)
 const bookAppointment = async (req, res) => {
   try {
     const { hospitalId, doctorId, date, timeSlot, reason, notes, bookingSource } = req.body;
     const patientId = req.user._id;
 
-    if (!hospitalId || !doctorId || !date || !timeSlot) {
-      return res.status(400).json({ message: 'Hospital ID, Doctor ID, date, and time slot are required.' });
+    if (!isValidObjectId(doctorId)) {
+      return res.status(400).json({ message: 'A valid doctorId is required.' });
     }
-
-    // Validate that appointment date is not in the past
-    const appointmentDate = new Date(date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (isNaN(appointmentDate.getTime()) || appointmentDate < today) {
-      return res.status(400).json({ message: 'Appointment date must be today or a future date.' });
+    if (hospitalId !== undefined && !isValidObjectId(hospitalId)) {
+      return res.status(400).json({ message: 'Invalid hospitalId.' });
     }
-
-    const existingAppointment = await Appointment.findOne({
-      doctor: doctorId,
-      date,
-      timeSlot,
-      status: 'upcoming'
-    });
-
-    if (existingAppointment) {
-      return res.status(400).json({ message: 'This time slot has already been booked. Please choose another slot.' });
+    if (!isValidISODate(date)) {
+      return res.status(400).json({ message: 'date must be a valid date in YYYY-MM-DD format.' });
     }
+    if (date < todayISO()) {
+      return res.status(400).json({ message: 'Appointments cannot be booked for a past date.' });
+    }
+    if (typeof timeSlot !== 'string' || !timeSlot.trim()) {
+      return res.status(400).json({ message: 'timeSlot is required.' });
+    }
+    // Accept ranges such as "10:00 AM - 10:30 AM" by booking their start time, so
+    // both formats map to the same slot (and the double-booking index still applies).
+    const slot = timeSlot.trim().split(/\s*[-–]\s*/)[0].replace(/\s+/g, ' ').toUpperCase().replace(/^(\d):/, '0$1:');
 
     const doctor = await Doctor.findById(doctorId);
     if (!doctor) {
       return res.status(404).json({ message: 'Doctor not found' });
     }
+    // The hospital always comes from the doctor; a mismatching hospitalId used to
+    // create appointments for a doctor at a hospital they do not work at.
+    if (hospitalId && !doctor.hospital.equals(hospitalId)) {
+      return res.status(400).json({ message: 'This doctor does not work at the selected hospital.' });
+    }
 
-    const hospital = await Hospital.findById(hospitalId);
+    const hospital = await Hospital.findById(doctor.hospital);
     if (!hospital) {
       return res.status(404).json({ message: 'Hospital not found' });
     }
+    if (hospital.verifiedStatus !== 'verified') {
+      return res.status(400).json({ message: 'This hospital is not accepting appointments yet.' });
+    }
+    if (doctor.status === 'on_leave') {
+      return res.status(400).json({ message: `Dr. ${doctor.name} is currently on leave. Please choose another doctor.` });
+    }
 
-    const appointment = await Appointment.create({
-      patient: patientId,
-      hospital: hospitalId,
-      doctor: doctorId,
-      date,
-      timeSlot,
-      reason: reason || 'General Consultation',
-      notes,
-      bookingSource: bookingSource || 'manual'
-    });
+    const slots = (doctor.schedule && doctor.schedule.slots) || [];
+    if (slots.length && !slots.includes(slot)) {
+      return res.status(400).json({ message: `Dr. ${doctor.name} has no "${slot}" slot. Available slots: ${slots.join(', ')}.` });
+    }
+    const days = (doctor.schedule && doctor.schedule.days) || [];
+    const weekday = WEEKDAYS[new Date(`${date}T00:00:00Z`).getUTCDay()];
+    if (days.length && !days.includes(weekday)) {
+      return res.status(400).json({ message: `Dr. ${doctor.name} is not available on ${weekday}s. Available days: ${days.join(', ')}.` });
+    }
 
-    await Notification.create({
-      recipient: patientId,
-      message: `Appointment booked with Dr. ${doctor.name} at ${hospital.name} on ${date} at ${timeSlot}.`,
-      type: 'info'
-    });
+    const existingAppointment = await Appointment.findOne({ doctor: doctor._id, date, timeSlot: slot, status: 'upcoming' });
+    if (existingAppointment) {
+      return res.status(409).json({ message: SLOT_TAKEN_MESSAGE });
+    }
 
-    if (hospital.user) {
-      await Notification.create({
-        recipient: hospital.user,
-        message: `New appointment booked for Dr. ${doctor.name} on ${date} at ${timeSlot}.`,
-        type: 'info'
+    let appointment;
+    try {
+      appointment = await Appointment.create({
+        patient: patientId,
+        hospital: hospital._id,
+        doctor: doctor._id,
+        date,
+        timeSlot: slot,
+        reason: clean(reason) || 'General Consultation',
+        notes: clean(notes),
+        bookingSource: BOOKING_SOURCES.includes(bookingSource) ? bookingSource : 'manual',
       });
+    } catch (createErr) {
+      // Two patients racing for the same slot: the unique index rejects the second one.
+      if (createErr && createErr.code === 11000) {
+        return res.status(409).json({ message: SLOT_TAKEN_MESSAGE });
+      }
+      throw createErr;
     }
 
-    if (req.app.get('socketio') && hospital.user) {
-      const io = req.app.get('socketio');
-      io.to(hospital.user.toString()).emit('new_appointment', appointment);
-    }
+    await notify(patientId, `Appointment booked with Dr. ${doctor.name} at ${hospital.name} on ${date} at ${slot}.`, 'info');
+    await notify(hospital.user, `New appointment booked for Dr. ${doctor.name} on ${date} at ${slot}.`, 'info');
+    emitTo([hospital.user, hospital._id], 'new_appointment', appointment);
 
     res.status(201).json(appointment);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
+// @desc    Get user's appointments
+// @route   GET /api/appointments
+// @access  Private
 const getAppointments = async (req, res) => {
   try {
-    let query = {};
+    const query = {};
     if (req.user.role === 'patient') {
       query.patient = req.user._id;
     } else if (req.user.role === 'hospital') {
@@ -88,86 +126,94 @@ const getAppointments = async (req, res) => {
         return res.status(404).json({ message: 'Hospital profile not found' });
       }
       query.hospital = hospital._id;
-    } else if (req.user.role === 'admin' || req.user.role === 'superadmin') {
-      // Admins see all
+    }
+    // admin / superadmin see everything
+
+    if (req.query.status) {
+      const statuses = Appointment.schema.path('status').enumValues;
+      if (!statuses.includes(req.query.status)) {
+        return res.status(400).json({ message: `status must be one of: ${statuses.join(', ')}` });
+      }
+      query.status = req.query.status;
     }
 
-    const { page = 1, limit = 50 } = req.query;
-    const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(100, parseInt(limit));
-
+    const { skip, limit } = parsePagination(req.query, { defaultLimit: 50, maxLimit: 100 });
     const appointments = await Appointment.find(query)
       .populate('patient', 'name email phone')
       .populate('hospital', 'name address emergencyPhone contactPhone')
       .populate('doctor', 'name specialization')
       .sort({ date: 1, timeSlot: 1 })
       .skip(skip)
-      .limit(Math.min(100, parseInt(limit)));
+      .limit(limit);
+
+    // String sorting puts "02:00 PM" before "09:00 AM"; fix the order within each day.
+    appointments.sort((a, b) => (a.date === b.date ? slotToMinutes(a.timeSlot) - slotToMinutes(b.timeSlot) : a.date < b.date ? -1 : 1));
 
     res.json(appointments);
   } catch (error) {
-    console.error('Error fetching appointments:', error.message);
-    res.status(500).json({ message: 'Failed to fetch appointments: ' + error.message });
+    // Previously any error returned an empty list, hiding real failures.
+    sendError(res, error);
   }
 };
 
+// @desc    Cancel an appointment
+// @route   PUT /api/appointments/:id/cancel
+// @access  Private
 const cancelAppointment = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid appointment id' });
+    }
+
     const appointment = await Appointment.findById(req.params.id)
       .populate('doctor', 'name')
       .populate('hospital', 'name user');
-      
+
     if (!appointment) {
       return res.status(404).json({ message: 'Appointment not found' });
     }
 
-    if (req.user.role === 'patient' && appointment.patient.toString() !== req.user._id.toString()) {
-      return res.status(401).json({ message: 'Not authorized to cancel this appointment' });
+    const role = req.user.role;
+    if (role === 'patient' && !appointment.patient.equals(req.user._id)) {
+      return res.status(403).json({ message: 'Not authorized to cancel this appointment' });
+    }
+    if (role === 'hospital') {
+      const hospital = await Hospital.findOne({ user: req.user._id });
+      const appointmentHospitalId = appointment.hospital ? appointment.hospital._id : null;
+      if (!hospital || !appointmentHospitalId || !appointmentHospitalId.equals(hospital._id)) {
+        return res.status(403).json({ message: 'Not authorized to cancel this hospital appointment' });
+      }
     }
 
-    if (req.user.role === 'hospital') {
-      const hospital = await Hospital.findOne({ user: req.user._id });
-      const appointmentHospitalId = appointment.hospital?._id ? appointment.hospital._id.toString() : appointment.hospital?.toString();
-      if (!hospital || appointmentHospitalId !== hospital._id.toString()) {
-        return res.status(401).json({ message: 'Not authorized to cancel this hospital appointment' });
-      }
+    if (appointment.status !== 'upcoming') {
+      return res.status(400).json({ message: `Only upcoming appointments can be cancelled (this one is ${appointment.status}).` });
     }
 
     appointment.status = 'cancelled';
     await appointment.save();
 
-    const doctorName = appointment.doctor?.name || 'Assigned Doctor';
-    const hospitalName = appointment.hospital?.name || 'Hospital';
+    // The doctor or hospital may have been removed since booking.
+    const doctorName = appointment.doctor ? `Dr. ${appointment.doctor.name}` : 'your doctor';
+    const hospitalName = appointment.hospital ? appointment.hospital.name : 'the hospital';
+    const cancelledBy = role === 'patient' ? 'the patient' : role === 'hospital' ? hospitalName : 'an administrator';
 
-    await Notification.create({
-      recipient: appointment.patient,
-      message: `Appointment with Dr. ${doctorName} at ${hospitalName} has been cancelled.`,
-      type: 'warning'
-    });
-
-    if (appointment.hospital?.user) {
-      await Notification.create({
-        recipient: appointment.hospital.user,
-        message: `Appointment with Dr. ${doctorName} on ${appointment.date} has been cancelled.`,
-        type: 'warning'
-      });
+    await notify(appointment.patient, `Appointment with ${doctorName} at ${hospitalName} on ${appointment.date} at ${appointment.timeSlot} was cancelled by ${cancelledBy}.`, 'warning');
+    if (appointment.hospital) {
+      await notify(appointment.hospital.user, `Appointment with ${doctorName} on ${appointment.date} at ${appointment.timeSlot} was cancelled by ${cancelledBy}.`, 'warning');
     }
 
-    if (req.app.get('socketio')) {
-      const io = req.app.get('socketio');
-      io.to(appointment.patient.toString()).emit('appointment_cancelled', appointment);
-      if (appointment.hospital?.user) {
-        io.to(appointment.hospital.user.toString()).emit('appointment_cancelled', appointment);
-      }
-    }
+    emitTo(appointment.patient, 'appointment_cancelled', appointment);
+    if (appointment.hospital) emitTo([appointment.hospital.user, appointment.hospital._id], 'appointment_cancelled', appointment);
 
     res.json({ message: 'Appointment cancelled successfully', appointment });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
 module.exports = {
   bookAppointment,
   getAppointments,
-  cancelAppointment
+  cancelAppointment,
+  slotToMinutes,
 };

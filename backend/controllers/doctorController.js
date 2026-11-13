@@ -1,49 +1,95 @@
 const Doctor = require('../models/Doctor');
 const Hospital = require('../models/Hospital');
+const Appointment = require('../models/Appointment');
+const { notify } = require('../utils/notify');
 const { fallbackDoctors } = require('../utils/fallbackData');
+const { sendError, isDbConnected, isValidObjectId, escapeRegex, isNumeric, missingFields, parsePagination } = require('../utils/http');
 
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const SLOT_REGEX = /^(0?[1-9]|1[0-2]):[0-5]\d (AM|PM)$/;
+const DOCTOR_STATUSES = Doctor.schema.path('status').enumValues;
+
+// Demo data (utils/fallbackData) served only while the database is unreachable.
+const seedDoctorsFallback = fallbackDoctors;
+
+/** Validate an optional { days, slots } schedule; returns { schedule } or { error }. */
+const parseSchedule = (schedule) => {
+  if (schedule === undefined || schedule === null) return { schedule: undefined };
+  if (typeof schedule !== 'object') return { error: 'schedule must be an object with days and slots arrays.' };
+  const result = {};
+  if (schedule.days !== undefined) {
+    if (!Array.isArray(schedule.days) || !schedule.days.length || !schedule.days.every((d) => WEEKDAYS.includes(d))) {
+      return { error: `schedule.days must be a non-empty list of: ${WEEKDAYS.join(', ')}` };
+    }
+    result.days = [...new Set(schedule.days)];
+  }
+  if (schedule.slots !== undefined) {
+    if (!Array.isArray(schedule.slots) || !schedule.slots.length || !schedule.slots.every((s) => SLOT_REGEX.test(String(s)))) {
+      return { error: 'schedule.slots must be a non-empty list of times such as "09:00 AM".' };
+    }
+    result.slots = [...new Set(schedule.slots.map(String))];
+  }
+  return { schedule: result };
+};
+
+// @desc    Get all doctors or doctors for a specific hospital
+// @route   GET /api/doctors
+// @access  Public
 const getDoctors = async (req, res) => {
   try {
-    const { hospitalId, specialization, page = 1, limit = 50 } = req.query;
-    let query = {};
+    const { hospitalId, specialization } = req.query;
 
-    if (hospitalId) {
-      query.hospital = hospitalId;
-    }
-    if (specialization) {
-      query.specialization = { $regex: specialization, $options: 'i' };
+    // An invalid id used to throw, which made the endpoint return the fake fallback list.
+    if (hospitalId !== undefined && !isValidObjectId(hospitalId)) {
+      return res.status(400).json({ message: 'Invalid hospitalId' });
     }
 
-    const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(100, parseInt(limit));
+    if (!isDbConnected()) {
+      res.set('X-Data-Source', 'fallback');
+      const spec = specialization ? String(specialization).toLowerCase() : null;
+      return res.json(
+        seedDoctorsFallback.filter(
+          (d) => (!hospitalId || d.hospital._id === hospitalId) && (!spec || d.specialization.toLowerCase().includes(spec))
+        )
+      );
+    }
 
+    const query = {};
+    if (hospitalId) query.hospital = hospitalId;
+    if (specialization) query.specialization = { $regex: escapeRegex(specialization), $options: 'i' };
+
+    const { skip, limit } = parsePagination(req.query, { defaultLimit: 50, maxLimit: 100 });
     const doctors = await Doctor.find(query)
       .populate('hospital', 'name address contactPhone emergencyPhone')
+      .sort({ name: 1 })
       .skip(skip)
-      .limit(Math.min(100, parseInt(limit)));
-
+      .limit(limit);
     res.json(doctors);
   } catch (error) {
-    console.warn('DB error in getDoctors, serving fallback doctors:', error.message);
-    const { specialization } = req.query;
-    if (specialization) {
-      const filtered = fallbackDoctors.filter(d => 
-        d.specialization.toLowerCase().includes(specialization.toLowerCase())
-      );
-      return res.json(filtered.length > 0 ? filtered : fallbackDoctors);
-    }
-    res.json(fallbackDoctors);
+    sendError(res, error);
   }
 };
 
+// @desc    Create/Add a new doctor
+// @route   POST /api/doctors
+// @access  Private (Hospital admin only)
 const addDoctor = async (req, res) => {
   try {
-    const { name, specialization, contact, experience, schedule } = req.body;
+    const { name, specialization, contact, experience, status } = req.body;
 
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      return res.status(400).json({ message: 'Doctor name is required.' });
+    const missing = missingFields(req.body, ['name', 'specialization']);
+    if (missing.length) {
+      return res.status(400).json({ message: `Missing required fields: ${missing.join(', ')}` });
     }
-    if (!specialization || typeof specialization !== 'string' || specialization.trim().length === 0) {
-      return res.status(400).json({ message: 'Doctor specialization is required.' });
+    if (experience !== undefined && experience !== '' && (!isNumeric(experience) || Number(experience) < 0 || Number(experience) > 70)) {
+      return res.status(400).json({ message: 'experience must be a number of years between 0 and 70.' });
+    }
+    if (status !== undefined && !DOCTOR_STATUSES.includes(status)) {
+      return res.status(400).json({ message: `status must be one of: ${DOCTOR_STATUSES.join(', ')}` });
+    }
+    const { schedule, error: scheduleError } = parseSchedule(req.body.schedule);
+    if (scheduleError) {
+      return res.status(400).json({ message: scheduleError });
     }
 
     const hospital = await Hospital.findOne({ user: req.user._id });
@@ -53,24 +99,30 @@ const addDoctor = async (req, res) => {
 
     const doctor = await Doctor.create({
       hospital: hospital._id,
-      name: name.trim(),
-      specialization: specialization.trim(),
-      contact: contact ? contact.trim() : hospital.contactPhone,
-      experience: Number(experience) || 0,
-      schedule: schedule || {
-        days: ["Monday", "Wednesday", "Friday"],
-        slots: ["09:00 AM", "10:00 AM", "11:00 AM", "02:00 PM"]
-      }
+      name: String(name).trim().replace(/^dr\.?\s+/i, ''), // the UI already prefixes "Dr."
+      specialization: String(specialization).trim(),
+      // Without a direct number, patients can reach the doctor through the hospital.
+      contact: typeof contact === 'string' && contact.trim() ? contact.trim() : hospital.contactPhone,
+      experience: experience === undefined || experience === '' ? undefined : Number(experience),
+      schedule,
+      status,
     });
 
     res.status(201).json(doctor);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
+// @desc    Delete/Remove a doctor
+// @route   DELETE /api/doctors/:id
+// @access  Private (Hospital admin only)
 const removeDoctor = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid doctor id' });
+    }
+
     const hospital = await Hospital.findOne({ user: req.user._id });
     if (!hospital) {
       return res.status(404).json({ message: 'Hospital profile not found' });
@@ -80,20 +132,33 @@ const removeDoctor = async (req, res) => {
     if (!doctor) {
       return res.status(404).json({ message: 'Doctor not found' });
     }
+    if (!doctor.hospital.equals(hospital._id)) {
+      return res.status(403).json({ message: 'Unauthorized to delete doctor from another hospital' });
+    }
 
-    if (doctor.hospital.toString() !== hospital._id.toString()) {
-      return res.status(401).json({ message: 'Unauthorized to delete doctor from another hospital' });
+    // Cancel the doctor's upcoming appointments and tell the patients, instead of
+    // leaving appointments that point at a deleted doctor.
+    const upcoming = await Appointment.find({ doctor: doctor._id, status: 'upcoming' }).select('patient date timeSlot');
+    if (upcoming.length) {
+      await Appointment.updateMany({ _id: { $in: upcoming.map((a) => a._id) } }, { status: 'cancelled' });
+      for (const appt of upcoming) {
+        await notify(
+          appt.patient,
+          `Your appointment with Dr. ${doctor.name} at ${hospital.name} on ${appt.date} at ${appt.timeSlot} was cancelled because the doctor is no longer available. Please book another doctor.`,
+          'warning'
+        );
+      }
     }
 
     await doctor.deleteOne();
-    res.json({ message: 'Doctor removed successfully' });
+    res.json({ message: 'Doctor removed successfully', cancelledAppointments: upcoming.length });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
 module.exports = {
   getDoctors,
   addDoctor,
-  removeDoctor
+  removeDoctor,
 };

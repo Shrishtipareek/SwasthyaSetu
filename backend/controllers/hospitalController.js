@@ -3,26 +3,56 @@ const Doctor = require('../models/Doctor');
 const Ambulance = require('../models/Ambulance');
 const ResourceRequest = require('../models/ResourceRequest');
 const Appointment = require('../models/Appointment');
-const Notification = require('../models/Notification');
+const { notify, emitAll } = require('../utils/notify');
+const {
+  sendError,
+  isDbConnected,
+  isValidObjectId,
+  escapeRegex,
+  isNumeric,
+  BLOOD_KEYS,
+  bloodGroupToKey,
+  bloodKeyToLabel,
+} = require('../utils/http');
 const { calculateDistance } = require('../utils/geo');
 const { fallbackHospitals, verifiedRegionalHospitals } = require('../utils/fallbackData');
 
+// Shared demo data (utils/fallbackData) served only while the database is unreachable.
+const seedHospitalsFallback = fallbackHospitals;
+
+// Apply the same filters to the offline fallback list so results stay consistent.
+const filterFallbackHospitals = ({ name, location, department, needsEmergency, needsIcu, bloodKey }) =>
+  seedHospitalsFallback.filter((h) => {
+    if (name && !h.name.toLowerCase().includes(String(name).toLowerCase())) return false;
+    if (location && !h.address.toLowerCase().includes(String(location).toLowerCase())) return false;
+    if (department && !h.departments.includes(department)) return false;
+    if (needsEmergency === 'true' && !(h.beds.emergencyAvailable > 0)) return false;
+    if (needsIcu === 'true' && !(h.beds.icuAvailable > 0)) return false;
+    if (bloodKey && !(h.bloodInventory[bloodKey]?.availableUnits > 0)) return false;
+    return true;
+  });
+
+// @desc    Get all hospitals with optional search/filters
+// @route   GET /api/hospitals
+// @access  Public
 const getHospitals = async (req, res) => {
   try {
     const { name, location, department, specialization, needsEmergency, needsIcu, needsBlood, lat, lng, maxDistance } = req.query;
 
-    let query = { verifiedStatus: 'verified' };
+    const query = { verifiedStatus: 'verified' };
 
+    // User input is escaped: a search such as "(" used to throw an invalid-regex error.
     if (name) {
-      query.name = { $regex: name, $options: 'i' };
+      query.name = { $regex: escapeRegex(name), $options: 'i' };
     }
 
     if (location) {
-      query.address = { $regex: location, $options: 'i' };
+      query.address = { $regex: escapeRegex(location), $options: 'i' };
     }
 
-    if (department) {
-      query.departments = { $in: [department] };
+    const dept = department || specialization;
+    if (dept) {
+      query.departments = { $regex: `^${escapeRegex(dept)}$`, $options: 'i' };
     }
 
     if (needsEmergency === 'true') {
@@ -33,31 +63,34 @@ const getHospitals = async (req, res) => {
       query['beds.icuAvailable'] = { $gt: 0 };
     }
 
+    let bloodKey = null;
     if (needsBlood) {
-      query[`bloodInventory.${needsBlood}.availableUnits`] = { $gt: 0 };
+      bloodKey = bloodGroupToKey(needsBlood);
+      if (!bloodKey) {
+        return res.status(400).json({ message: `Invalid blood group: ${needsBlood}` });
+      }
+      query[`bloodInventory.${bloodKey}.availableUnits`] = { $gt: 0 };
     }
 
-    let hospitals = [];
-    try {
-      hospitals = await Hospital.find(query);
-    } catch (dbErr) {
-      console.warn('DB query error, serving seed fallback hospitals:', dbErr.message);
-      hospitals = fallbackHospitals;
+    let hospitals;
+    if (isDbConnected()) {
+      hospitals = await Hospital.find(query).lean();
+    } else {
+      console.warn('Database not connected, serving seed fallback hospitals.');
+      hospitals = filterFallbackHospitals({ name, location, department: dept, needsEmergency, needsIcu, bloodKey });
     }
 
-    if (lat && lng) {
+    if (lat !== undefined && lng !== undefined && isNumeric(lat) && isNumeric(lng)) {
       const userLat = parseFloat(lat);
       const userLng = parseFloat(lng);
-      
-      hospitals = hospitals.map(h => {
-        const obj = typeof h.toObject === 'function' ? h.toObject() : h;
-        const distance = calculateDistance(userLat, userLng, obj.location.lat, obj.location.lng);
-        return { ...obj, distance };
-      });
 
-      if (maxDistance) {
+      hospitals = hospitals
+        .filter((h) => h.location && isNumeric(h.location.lat) && isNumeric(h.location.lng))
+        .map((h) => ({ ...h, distance: calculateDistance(userLat, userLng, h.location.lat, h.location.lng) }));
+
+      if (maxDistance && isNumeric(maxDistance)) {
         const maxDistNum = parseFloat(maxDistance);
-        hospitals = hospitals.filter(h => h.distance <= maxDistNum);
+        hospitals = hospitals.filter((h) => h.distance <= maxDistNum);
       }
 
       hospitals.sort((a, b) => a.distance - b.distance);
@@ -65,24 +98,85 @@ const getHospitals = async (req, res) => {
 
     res.json(hospitals);
   } catch (error) {
-    res.json(fallbackHospitals);
+    sendError(res, error);
   }
 };
+
+// @desc    List connected (verified) hospitals for the public dashboard modal
+// @route   GET /api/hospitals/connected
+// @access  Public
+const CONNECTED_FIELDS = 'name address emergencyPhone contactPhone website hospitalType verifiedStatus beds location operatingHours';
+
+const getConnectedHospitals = async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      res.set('X-Data-Source', 'fallback');
+      return res.json(
+        seedHospitalsFallback.map(({ _id, name, address, emergencyPhone, phone, hospitalType, verifiedStatus, beds, location }) => ({
+          _id, name, address, emergencyPhone, contactPhone: phone, hospitalType, verifiedStatus, beds, location, isFallback: true,
+        }))
+      );
+    }
+    // Only verified institutions are "connected"; pending / rejected registrations
+    // must not be advertised to the public.
+    const hospitals = await Hospital.find({ verifiedStatus: 'verified' })
+      .select(CONNECTED_FIELDS)
+      .sort({ name: 1 })
+      .lean();
+    res.json(hospitals);
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+/** Compact per-hospital summary shown in the public dashboard's hospital list. */
+const toPublicSummary = (h) => ({
+  _id: h._id,
+  name: h.name,
+  address: h.address,
+  hospitalType: h.hospitalType || 'Hospital',
+  verifiedStatus: h.verifiedStatus || 'verified',
+  emergencyPhone: h.emergencyPhone,
+  contactPhone: h.contactPhone || h.phone,
+  website: h.website || null,
+  availableBeds: h.beds?.available || 0,
+  icuAvailable: h.beds?.icuAvailable || 0,
+});
+
+// The public dashboard reads `availableBloodUnits` and `emergencyHospitalsCount`;
+// the API used to send only `bloodUnitsAvailable` / `emergencyHospitals`, so those
+// two cards were always blank. Both spellings are sent for compatibility.
+const withStatAliases = (stats) => ({
+  ...stats,
+  availableBloodUnits: stats.bloodUnitsAvailable,
+  emergencyHospitalsCount: stats.emergencyHospitals,
+});
+
+const FALLBACK_STATS = withStatAliases({
+  hospitalsConnected: 10,
+  availableBeds: 500,
+  totalBeds: 2400,
+  availableIcuBeds: 50,
+  totalIcuBeds: 300,
+  availableAmbulances: 12,
+  bloodUnitsAvailable: 1500,
+  emergencyHospitals: 8,
+});
 
 // @desc    Get public aggregate stats for public dashboard
 // @route   GET /api/hospitals/stats
 // @access  Public
 const getPublicStats = async (req, res) => {
   try {
-    let hospitals = [];
-    let ambulancesCount = 0;
-    try {
-      hospitals = await Hospital.find({});
-      ambulancesCount = await Ambulance.countDocuments({ status: 'available' });
-    } catch (dbErr) {
-      console.warn('DB query error in getPublicStats:', dbErr.message);
-      return res.status(500).json({ message: 'Database error fetching hospital statistics' });
+    if (!isDbConnected()) {
+      return res.json({ ...FALLBACK_STATS, hospitals: seedHospitalsFallback.map(toPublicSummary), isFallback: true });
     }
+
+    const hospitals = await Hospital.find({ verifiedStatus: 'verified' })
+      .select('name address hospitalType verifiedStatus emergencyPhone contactPhone website beds bloodInventory')
+      .lean();
+    const verifiedIds = hospitals.map((h) => h._id);
+    const ambulancesCount = await Ambulance.countDocuments({ status: 'available', hospital: { $in: verifiedIds } });
 
     let totalBeds = 0;
     let availableBeds = 0;
@@ -90,60 +184,37 @@ const getPublicStats = async (req, res) => {
     let availableIcu = 0;
     let bloodUnits = 0;
 
-    hospitals.forEach(h => {
+    hospitals.forEach((h) => {
       totalBeds += h.beds?.total || 0;
       availableBeds += h.beds?.available || 0;
       totalIcu += h.beds?.icuTotal || 0;
       availableIcu += h.beds?.icuAvailable || 0;
-      
-      if (h.bloodInventory) {
-        Object.keys(h.bloodInventory).forEach(group => {
-          bloodUnits += h.bloodInventory[group]?.availableUnits || 0;
-        });
-      }
+
+      BLOOD_KEYS.forEach((group) => {
+        bloodUnits += h.bloodInventory?.[group]?.availableUnits || 0;
+      });
     });
 
-    const emergencyHospitalsCount = hospitals.filter(h => (h.beds?.emergencyAvailable || 0) > 0).length;
+    const emergencyHospitalsCount = hospitals.filter((h) => h.beds?.emergencyAvailable > 0).length;
 
-    res.json({
-      hospitalsConnected: hospitals.length,
-      availableBeds,
-      totalBeds,
-      availableIcuBeds: availableIcu,
-      totalIcuBeds: totalIcu,
-      availableAmbulances: ambulancesCount,
-      availableBloodUnits: bloodUnits,
-      bloodUnitsAvailable: bloodUnits,
-      emergencyHospitalsCount,
-      hospitals: hospitals.map(h => ({
-        _id: h._id,
-        name: h.name,
-        address: h.address,
-        hospitalType: h.hospitalType || 'Hospital',
-        verifiedStatus: h.verifiedStatus || 'pending',
-        emergencyPhone: h.emergencyPhone,
-        contactPhone: h.contactPhone,
-        website: h.website || null,
-        availableBeds: h.beds?.available || 0,
-        icuAvailable: h.beds?.icuAvailable || 0
-      }))
-    });
+    // Real numbers (including genuine zeros) are reported when the DB is reachable;
+    // previously any 0 was silently replaced with made-up numbers.
+    res.json(
+      withStatAliases({
+        hospitalsConnected: hospitals.length,
+        availableBeds,
+        totalBeds,
+        availableIcuBeds: availableIcu,
+        totalIcuBeds: totalIcu,
+        availableAmbulances: ambulancesCount,
+        bloodUnitsAvailable: bloodUnits,
+        emergencyHospitals: emergencyHospitalsCount,
+        hospitals: hospitals.map(toPublicSummary),
+      })
+    );
   } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
-
-// @desc    Get list of all connected/registered hospitals for public modal
-// @route   GET /api/hospitals/connected
-// @access  Public
-const getConnectedHospitals = async (req, res) => {
-  try {
-    const hospitals = await Hospital.find({})
-      .select('name address emergencyPhone contactPhone website hospitalType verifiedStatus beds location operatingHours')
-      .sort({ createdAt: -1 });
-    res.json(hospitals);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.warn('Stats query failed, serving fallback stats:', error.message);
+    res.json({ ...FALLBACK_STATS, hospitals: seedHospitalsFallback.map(toPublicSummary), isFallback: true });
   }
 };
 
@@ -152,24 +223,75 @@ const getConnectedHospitals = async (req, res) => {
 // @access  Public
 const getHospitalById = async (req, res) => {
   try {
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid hospital id' });
+    }
+
+    if (!isDbConnected()) {
+      const fallback = seedHospitalsFallback.find((h) => h._id === req.params.id);
+      if (!fallback) return res.status(404).json({ message: 'Hospital not found' });
+      return res.json({ hospital: fallback, doctors: [], ambulances: [] });
+    }
+
     const hospital = await Hospital.findById(req.params.id);
     if (!hospital) {
       return res.status(404).json({ message: 'Hospital not found' });
     }
 
-    const doctors = await Doctor.find({ hospital: hospital._id });
-    const ambulances = await Ambulance.find({ hospital: hospital._id });
+    const [doctors, ambulances] = await Promise.all([
+      Doctor.find({ hospital: hospital._id }),
+      Ambulance.find({ hospital: hospital._id }),
+    ]);
 
     res.json({
       hospital,
       doctors,
-      ambulances
+      ambulances,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
+const BED_FIELDS = [
+  'total',
+  'occupied',
+  'icuTotal',
+  'icuAvailable',
+  'emergencyTotal',
+  'emergencyAvailable',
+  'ventilatorsTotal',
+  'ventilatorsAvailable',
+];
+const ORGAN_KEYS = ['kidney', 'liver', 'heart', 'lungs'];
+const THRESHOLD_KEYS = ['bloodLow', 'bloodCritical', 'icuLow', 'emergencyLow'];
+
+/** Alert level per tracked resource: 0 = ok, 1 = low, 2 = critical (blood only). */
+const getAlertLevels = (h) => {
+  const t = h.thresholds || {};
+  const levels = {
+    icu: h.beds.icuAvailable <= t.icuLow ? 1 : 0,
+    emergency: h.beds.emergencyAvailable <= t.emergencyLow ? 1 : 0,
+  };
+  BLOOD_KEYS.forEach((group) => {
+    const units = h.bloodInventory[group]?.availableUnits ?? 0;
+    levels[group] = units <= t.bloodCritical ? 2 : units <= t.bloodLow ? 1 : 0;
+  });
+  return levels;
+};
+
+const toNonNegativeInt = (value, label) => {
+  if (!isNumeric(value) || Number(value) < 0) {
+    const err = new Error(`${label} must be a non-negative number`);
+    err.statusCode = 400;
+    throw err;
+  }
+  return Math.floor(Number(value));
+};
+
+// @desc    Update real-time resources/inventory
+// @route   PUT /api/hospitals/resources
+// @access  Private (Hospital admin only)
 const updateResources = async (req, res) => {
   try {
     const hospital = await Hospital.findOne({ user: req.user._id });
@@ -178,91 +300,107 @@ const updateResources = async (req, res) => {
     }
 
     const { beds, bloodInventory, organs, thresholds } = req.body;
+    const levelsBefore = getAlertLevels(hospital);
 
-    if (beds) {
-      const sanitizedBeds = {};
-      Object.keys(beds).forEach(key => {
-        if (typeof beds[key] === 'number') {
-          sanitizedBeds[key] = Math.max(0, beds[key]);
-        } else {
-          sanitizedBeds[key] = beds[key];
+    if (beds && typeof beds === 'object') {
+      // Assign field by field. The previous `{ ...hospital.beds, ...beds }` spread a
+      // Mongoose nested object, which does not reliably copy the stored values.
+      BED_FIELDS.forEach((field) => {
+        if (beds[field] !== undefined) {
+          hospital.beds[field] = toNonNegativeInt(beds[field], `beds.${field}`);
         }
       });
-      hospital.beds = { ...hospital.beds, ...sanitizedBeds };
-      if (sanitizedBeds.occupied !== undefined || sanitizedBeds.total !== undefined) {
-        const total = sanitizedBeds.total !== undefined ? sanitizedBeds.total : hospital.beds.total;
-        const occupied = sanitizedBeds.occupied !== undefined ? sanitizedBeds.occupied : hospital.beds.occupied;
-        hospital.beds.available = Math.max(0, total - occupied);
+
+      const b = hospital.beds;
+      if (b.occupied > b.total) {
+        return res.status(400).json({ message: 'Occupied beds cannot exceed total beds.' });
       }
+      // Keep the "available <= total" invariant: raise capacity if a hospital reports
+      // more available units than its configured total.
+      if (b.icuAvailable > b.icuTotal) b.icuTotal = b.icuAvailable;
+      if (b.emergencyAvailable > b.emergencyTotal) b.emergencyTotal = b.emergencyAvailable;
+      if (b.ventilatorsAvailable > b.ventilatorsTotal) b.ventilatorsTotal = b.ventilatorsAvailable;
+      // Available general beds are always derived from total - occupied.
+      b.available = Math.max(0, b.total - b.occupied);
     }
 
-    if (bloodInventory) {
-      Object.keys(bloodInventory).forEach(group => {
-        if (hospital.bloodInventory[group]) {
-          hospital.bloodInventory[group].availableUnits = Math.max(0, parseInt(bloodInventory[group].availableUnits) || 0);
-          hospital.bloodInventory[group].lastUpdated = Date.now();
-        }
+    if (bloodInventory && typeof bloodInventory === 'object') {
+      Object.keys(bloodInventory).forEach((group) => {
+        const key = bloodGroupToKey(group);
+        if (!key) return; // ignore unknown keys instead of writing arbitrary paths
+        const entry = bloodInventory[group];
+        const units = entry && typeof entry === 'object' ? entry.availableUnits : entry;
+        if (units === undefined) return;
+        hospital.bloodInventory[key].availableUnits = toNonNegativeInt(units, `bloodInventory.${group}`);
+        hospital.bloodInventory[key].lastUpdated = Date.now();
       });
     }
 
-    if (organs) {
-      Object.keys(organs).forEach(org => {
-        if (hospital.organs[org]) {
-          hospital.organs[org].available = organs[org].available;
-          hospital.organs[org].lastUpdated = Date.now();
-        }
+    if (organs && typeof organs === 'object') {
+      Object.keys(organs).forEach((org) => {
+        if (!ORGAN_KEYS.includes(org)) return;
+        const entry = organs[org];
+        const available = entry && typeof entry === 'object' ? entry.available : entry;
+        if (available === undefined) return;
+        hospital.organs[org].available = toNonNegativeInt(available, `organs.${org}`);
+        hospital.organs[org].lastUpdated = Date.now();
       });
     }
 
-    if (thresholds) {
-      hospital.thresholds = { ...hospital.thresholds, ...thresholds };
+    if (thresholds && typeof thresholds === 'object') {
+      THRESHOLD_KEYS.forEach((key) => {
+        if (thresholds[key] !== undefined) {
+          hospital.thresholds[key] = toNonNegativeInt(thresholds[key], `thresholds.${key}`);
+        }
+      });
     }
 
     await hospital.save();
 
+    // Check critical thresholds. Every current alert is returned to the dashboard,
+    // but a notification is only created when a level gets worse with this update;
+    // otherwise each save re-sent the same ~10 warnings.
+    const levelsAfter = getAlertLevels(hospital);
     const alerts = [];
-    if (hospital.beds.icuAvailable <= hospital.thresholds.icuLow) {
-      alerts.push(`ICU Beds are low: only ${hospital.beds.icuAvailable} available.`);
+    if (levelsAfter.icu) {
+      alerts.push({ key: 'icu', type: 'warning', message: `ICU Beds are low: only ${hospital.beds.icuAvailable} available.` });
     }
-    if (hospital.beds.emergencyAvailable <= hospital.thresholds.emergencyLow) {
-      alerts.push(`Emergency Beds are low: only ${hospital.beds.emergencyAvailable} available.`);
+    if (levelsAfter.emergency) {
+      alerts.push({ key: 'emergency', type: 'warning', message: `Emergency Beds are low: only ${hospital.beds.emergencyAvailable} available.` });
     }
-
-    Object.keys(hospital.bloodInventory).forEach(group => {
-      const units = hospital.bloodInventory[group].availableUnits;
-      if (units <= hospital.thresholds.bloodCritical) {
-        alerts.push(`CRITICAL: Blood group ${group.replace('p', '+').replace('n', '-')} is critically low (${units} units remaining).`);
-      } else if (units <= hospital.thresholds.bloodLow) {
-        alerts.push(`WARNING: Blood group ${group.replace('p', '+').replace('n', '-')} is low (${units} units remaining).`);
+    BLOOD_KEYS.forEach((group) => {
+      const units = hospital.bloodInventory[group]?.availableUnits ?? 0;
+      if (levelsAfter[group] === 2) {
+        alerts.push({ key: group, type: 'critical', message: `CRITICAL: Blood group ${bloodKeyToLabel(group)} is critically low (${units} units remaining).` });
+      } else if (levelsAfter[group] === 1) {
+        alerts.push({ key: group, type: 'warning', message: `WARNING: Blood group ${bloodKeyToLabel(group)} is low (${units} units remaining).` });
       }
     });
 
-    if (alerts.length > 0) {
-      for (const alertMsg of alerts) {
-        await Notification.create({
-          recipient: req.user._id,
-          message: alertMsg,
-          type: alertMsg.includes('CRITICAL') ? 'critical' : 'warning'
-        });
+    for (const alert of alerts) {
+      if (levelsAfter[alert.key] > levelsBefore[alert.key]) {
+        await notify(req.user._id, alert.message, alert.type);
       }
     }
-    if (req.app.get('socketio')) {
-      const io = req.app.get('socketio');
-      io.emit('resource_update', {
-        hospitalId: hospital._id,
-        name: hospital.name,
-        beds: hospital.beds,
-        bloodInventory: hospital.bloodInventory,
-        organs: hospital.organs
-      });
-    }
 
-    res.json({ message: 'Resources updated successfully', hospital });
+    // Trigger Socket.io real-time resource update
+    emitAll('resource_update', {
+      hospitalId: hospital._id,
+      name: hospital.name,
+      beds: hospital.beds,
+      bloodInventory: hospital.bloodInventory,
+      organs: hospital.organs,
+    });
+
+    res.json({ message: 'Resources updated successfully', hospital, alerts: alerts.map((a) => a.message) });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
+// @desc    Get Stats for Hospital Admin Dashboard
+// @route   GET /api/hospitals/dashboard/stats
+// @access  Private (Hospital admin only)
 const getHospitalDashboardStats = async (req, res) => {
   try {
     const hospital = await Hospital.findOne({ user: req.user._id });
@@ -270,30 +408,25 @@ const getHospitalDashboardStats = async (req, res) => {
       return res.status(404).json({ message: 'Hospital not found' });
     }
 
-    const doctorsCount = await Doctor.countDocuments({ hospital: hospital._id });
-    const ambulancesCount = await Ambulance.countDocuments({ hospital: hospital._id });
-    const appointmentsCount = await Appointment.countDocuments({ hospital: hospital._id });
-    const pendingRequestsCount = await ResourceRequest.countDocuments({
-      providingHospital: hospital._id,
-      status: 'pending'
-    });
-
-    const recentRequests = await ResourceRequest.find({
-      $or: [
-        { requestingHospital: hospital._id },
-        { providingHospital: hospital._id }
-      ]
-    })
-    .populate('requestingHospital', 'name')
-    .populate('providingHospital', 'name')
-    .sort({ createdAt: -1 })
-    .limit(5);
-
-    const recentAppointments = await Appointment.find({ hospital: hospital._id })
-      .populate('patient', 'name email phone')
-      .populate('doctor', 'name specialization')
-      .sort({ createdAt: -1 })
-      .limit(5);
+    const [doctorsCount, ambulancesCount, appointmentsCount, pendingRequestsCount, recentRequests, recentAppointments] =
+      await Promise.all([
+        Doctor.countDocuments({ hospital: hospital._id }),
+        Ambulance.countDocuments({ hospital: hospital._id }),
+        Appointment.countDocuments({ hospital: hospital._id }),
+        ResourceRequest.countDocuments({ providingHospital: hospital._id, status: 'pending' }),
+        ResourceRequest.find({
+          $or: [{ requestingHospital: hospital._id }, { providingHospital: hospital._id }],
+        })
+          .populate('requestingHospital', 'name')
+          .populate('providingHospital', 'name')
+          .sort({ createdAt: -1 })
+          .limit(5),
+        Appointment.find({ hospital: hospital._id })
+          .populate('patient', 'name email phone')
+          .populate('doctor', 'name specialization')
+          .sort({ createdAt: -1 })
+          .limit(5),
+      ]);
 
     res.json({
       hospital,
@@ -302,35 +435,86 @@ const getHospitalDashboardStats = async (req, res) => {
       appointmentsCount,
       pendingRequestsCount,
       recentRequests,
-      recentAppointments
+      recentAppointments,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
-// In-memory cache with 10-minute TTL to prevent hammering Overpass API
+// In-memory cache (10-minute TTL, bounded size) so the public Overpass API is not hammered.
 const osmCache = new Map();
 const OSM_CACHE_TTL = 10 * 60 * 1000;
+const OSM_CACHE_MAX_ENTRIES = 500;
 
 setInterval(() => {
   const now = Date.now();
   for (const [key, entry] of osmCache.entries()) {
-    if (now - entry.timestamp > OSM_CACHE_TTL) {
-      osmCache.delete(key);
-    }
+    if (now - entry.timestamp > OSM_CACHE_TTL) osmCache.delete(key);
   }
 }, 5 * 60 * 1000).unref();
+
+const cacheOsmResult = (key, data) => {
+  if (osmCache.size >= OSM_CACHE_MAX_ENTRIES) {
+    // Map preserves insertion order: drop the oldest entry.
+    osmCache.delete(osmCache.keys().next().value);
+  }
+  osmCache.set(key, { timestamp: Date.now(), data });
+};
 
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
   'https://lz4.overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter'
 ];
+// Total budget for the live lookup. It must stay well below the frontend's 20s
+// request timeout (querying the mirrors one after another took ~36s when they hung).
+const OVERPASS_TIMEOUT_MS = Number(process.env.OVERPASS_TIMEOUT_MS) || 10000;
+const OVERPASS_FAILURE_COOLDOWN_MS = 60 * 1000;
+let overpassUnavailableUntil = 0;
+
+/** Query all mirrors in parallel and return the first valid answer. */
+const queryOverpass = async (overpassQuery) => {
+  if (Date.now() < overpassUnavailableUntil) {
+    throw new Error('Overpass API recently failed; serving the verified fallback list');
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OVERPASS_TIMEOUT_MS);
+  try {
+    return await Promise.any(
+      OVERPASS_ENDPOINTS.map(async (endpoint) => {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Accept: 'application/json',
+            'User-Agent': 'SwasthyaSetu-EmergencyNetwork/1.0'
+          },
+          body: `data=${encodeURIComponent(overpassQuery)}`,
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error(`${endpoint} responded with status ${response.status}`);
+        const data = await response.json();
+        if (!Array.isArray(data?.elements)) throw new Error(`${endpoint} returned an unexpected payload`);
+        return data;
+      })
+    );
+  } catch (error) {
+    // All mirrors failed: skip them for a minute so every search does not wait again.
+    overpassUnavailableUntil = Date.now() + OVERPASS_FAILURE_COOLDOWN_MS;
+    throw error instanceof AggregateError ? new Error(error.errors.map((e) => e.message).join('; ')) : error;
+  } finally {
+    clearTimeout(timer);
+    controller.abort(); // cancel the slower mirrors once one has answered
+  }
+};
+
+const filterByCategory = (list, type) =>
+  type && type !== 'all' ? list.filter((h) => h.category?.toLowerCase().includes(String(type).toLowerCase())) : list;
 
 /**
  * @desc    Discover real hospitals and healthcare facilities from OpenStreetMap via Overpass API
- * @route   GET /api/hospitals/nearby-real
+ * @route   GET /api/hospitals/nearby-real?lat=&lng=&radius=&type=
  * @access  Public
  */
 const getNearbyRealHospitals = async (req, res) => {
@@ -350,23 +534,18 @@ const getNearbyRealHospitals = async (req, res) => {
     const radiusMeters = Math.min(50000, Math.max(1000, parseInt(radius, 10) || 10000));
     const cacheKey = `${userLat.toFixed(3)}_${userLng.toFixed(3)}_${radiusMeters}`;
 
-    if (osmCache.has(cacheKey)) {
-      const cached = osmCache.get(cacheKey);
-      if (Date.now() - cached.timestamp < OSM_CACHE_TTL) {
-        let results = cached.data;
-        if (type && type !== 'all') {
-          results = results.filter(h => h.category?.toLowerCase().includes(type.toLowerCase()));
-        }
-        return res.json({
-          success: true,
-          cached: true,
-          source: 'OpenStreetMap / Overpass API (Cached)',
-          userCoordinates: { lat: userLat, lng: userLng },
-          radiusMeters,
-          count: results.length,
-          hospitals: results
-        });
-      }
+    const cached = osmCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < OSM_CACHE_TTL) {
+      const results = filterByCategory(cached.data, type);
+      return res.json({
+        success: true,
+        cached: true,
+        source: 'OpenStreetMap / Overpass API (Cached)',
+        userCoordinates: { lat: userLat, lng: userLng },
+        radiusMeters,
+        count: results.length,
+        hospitals: results
+      });
     }
 
     // Overpass QL Query
@@ -386,76 +565,60 @@ out center tags qt;`;
 
     let overpassData = null;
     let lastError = null;
-
-    for (const endpoint of OVERPASS_ENDPOINTS) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 18000);
-
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'User-Agent': 'SwasthyaSetu-EmergencyNetwork/1.0'
-          },
-          body: `data=${encodeURIComponent(overpassQuery)}`,
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-
-        if (response.ok) {
-          overpassData = await response.json();
-          break;
-        } else {
-          lastError = new Error(`Overpass server responded with status: ${response.status}`);
-        }
-      } catch (err) {
-        lastError = err;
-      }
+    try {
+      overpassData = await queryOverpass(overpassQuery);
+    } catch (err) {
+      lastError = err;
     }
 
     if (!overpassData || !Array.isArray(overpassData.elements)) {
       console.warn('Overpass API query failed across endpoints:', lastError?.message);
 
+      // Fall back to verified SwasthyaSetu hospitals (never pending / rejected ones)
+      // plus the curated regional list.
       let registeredHospitals = [];
-      try {
-        registeredHospitals = await Hospital.find({});
-      } catch (e) {
-        registeredHospitals = [];
+      if (isDbConnected()) {
+        try {
+          registeredHospitals = await Hospital.find({ verifiedStatus: 'verified' }).lean();
+        } catch (e) {
+          registeredHospitals = [];
+        }
       }
 
-      const registeredMatches = registeredHospitals.map(h => {
-        const obj = typeof h.toObject === 'function' ? h.toObject() : h;
-        const hLat = obj.location?.coordinates?.[1] || obj.location?.lat || obj.lat;
-        const hLng = obj.location?.coordinates?.[0] || obj.location?.lng || obj.lng;
-        const dist = (hLat && hLng) ? calculateDistance(userLat, userLng, hLat, hLng) : 999;
-        return {
-          id: String(obj._id || 'hosp-' + Math.random()),
-          name: obj.name,
-          address: obj.address || 'Address on record',
-          lat: hLat,
-          lng: hLng,
-          distanceKm: Number(dist.toFixed(1)),
-          category: 'Hospital (SwasthyaSetu Network)',
-          phone: obj.emergencyPhone || obj.contactPhone || null,
-          website: obj.website || null,
-          isEmergency: Boolean(obj.beds?.emergencyAvailable > 0),
-          isRegisteredNetwork: true,
-          beds: obj.beds
-        };
-      }).filter(h => h.distanceKm <= (radiusMeters / 1000) * 1.5);
+      const maxKm = (radiusMeters / 1000) * 1.5;
+      const registeredMatches = registeredHospitals
+        .filter((h) => h.location && isNumeric(h.location.lat) && isNumeric(h.location.lng))
+        .map((h) => {
+          const dist = calculateDistance(userLat, userLng, h.location.lat, h.location.lng);
+          return {
+            id: String(h._id),
+            name: h.name,
+            address: h.address || 'Address on record',
+            lat: h.location.lat,
+            lng: h.location.lng,
+            distanceKm: Number(dist.toFixed(1)),
+            category: 'Hospital (SwasthyaSetu Network)',
+            phone: h.emergencyPhone || h.contactPhone || null,
+            website: h.website || null,
+            isEmergency: Boolean(h.beds?.emergencyAvailable > 0),
+            isRegisteredNetwork: true,
+            beds: h.beds
+          };
+        })
+        .filter((h) => h.distanceKm <= maxKm);
 
-      const regionalMatches = (verifiedRegionalHospitals || []).map(h => {
-        const dist = calculateDistance(userLat, userLng, h.lat, h.lng);
-        return {
+      const regionalMatches = (verifiedRegionalHospitals || [])
+        .map((h) => ({
           ...h,
-          distanceKm: Number(dist.toFixed(1)),
+          distanceKm: Number(calculateDistance(userLat, userLng, h.lat, h.lng).toFixed(1)),
           isRegisteredNetwork: false
-        };
-      }).filter(h => h.distanceKm <= (radiusMeters / 1000) * 1.5);
+        }))
+        .filter((h) => h.distanceKm <= maxKm);
 
-      const fallbackList = [...registeredMatches, ...regionalMatches]
-        .sort((a, b) => a.distanceKm - b.distanceKm);
+      const fallbackList = filterByCategory(
+        [...registeredMatches, ...regionalMatches].sort((a, b) => a.distanceKm - b.distanceKm),
+        type
+      );
 
       return res.json({
         success: true,
@@ -469,11 +632,10 @@ out center tags qt;`;
     }
 
     // Process Overpass elements
-    const rawElements = overpassData.elements;
     const facilities = [];
-    const seenMap = new Map();
+    const seen = new Set();
 
-    for (const elem of rawElements) {
+    for (const elem of overpassData.elements) {
       const tags = elem.tags || {};
       const rawName = tags.name || tags['name:en'] || tags['name:hi'] || tags.official_name || tags.operator;
 
@@ -481,13 +643,10 @@ out center tags qt;`;
       const isClinic = tags.amenity === 'clinic' || tags.healthcare === 'clinic';
       const isEmergency = tags.emergency === 'yes' || tags['healthcare:emergency'] === 'yes';
 
-      if (!rawName && !isHospital && !isEmergency) {
-        continue;
-      }
+      if (!rawName && !isHospital && !isEmergency) continue;
 
       const hLat = elem.type === 'node' ? elem.lat : elem.center?.lat;
       const hLng = elem.type === 'node' ? elem.lon : elem.center?.lon;
-
       if (hLat == null || hLng == null) continue;
 
       const dist = calculateDistance(userLat, userLng, hLat, hLng);
@@ -521,11 +680,10 @@ out center tags qt;`;
         category = `Multi-Specialty (${tags['healthcare:speciality'].replace(/_/g, ' ')})`;
       }
 
-      const normKey = `${displayName.toLowerCase().replace(/[^a-z0-9]/g, '')}_${hLat.toFixed(2)}_${hLng.toFixed(2)}`;
-      if (seenMap.has(normKey)) {
-        continue;
-      }
-      seenMap.set(normKey, true);
+      // The same facility is often mapped as both a node and a way.
+      const dedupeKey = `${displayName.toLowerCase().replace(/[^a-z0-9]/g, '')}_${hLat.toFixed(2)}_${hLng.toFixed(2)}`;
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
 
       facilities.push({
         id: `osm-${elem.type}-${elem.id}`,
@@ -542,22 +700,14 @@ out center tags qt;`;
         isEmergency,
         openingHours: tags.opening_hours || null,
         operator: tags.operator || null,
-        bedsEstimate: tags.beds ? parseInt(tags.beds, 10) : null
+        bedsEstimate: tags.beds ? parseInt(tags.beds, 10) || null : null
       });
     }
 
     facilities.sort((a, b) => a.distanceKm - b.distanceKm);
+    cacheOsmResult(cacheKey, facilities);
 
-    osmCache.set(cacheKey, {
-      timestamp: Date.now(),
-      data: facilities
-    });
-
-    let results = facilities;
-    if (type && type !== 'all') {
-      results = results.filter(h => h.category?.toLowerCase().includes(type.toLowerCase()));
-    }
-
+    const results = filterByCategory(facilities, type);
     res.json({
       success: true,
       cached: false,
@@ -571,17 +721,18 @@ out center tags qt;`;
     console.error('Error in getNearbyRealHospitals:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to discover nearby healthcare facilities. ' + error.message
+      message: 'Failed to discover nearby healthcare facilities. Please try again shortly.'
     });
   }
 };
 
 module.exports = {
   getHospitals,
-  getPublicStats,
   getConnectedHospitals,
+  getPublicStats,
   getHospitalById,
   updateResources,
   getHospitalDashboardStats,
-  getNearbyRealHospitals
+  getNearbyRealHospitals,
+  seedHospitalsFallback,
 };

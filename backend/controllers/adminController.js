@@ -2,35 +2,47 @@ const Hospital = require('../models/Hospital');
 const User = require('../models/User');
 const Doctor = require('../models/Doctor');
 const Appointment = require('../models/Appointment');
-const Notification = require('../models/Notification');
+const { notify } = require('../utils/notify');
+const { sendError, isValidObjectId, parsePagination } = require('../utils/http');
 
+const VERIFICATION_STATUSES = Hospital.schema.path('verifiedStatus').enumValues;
+
+// @desc    Get all hospitals (optionally ?status=pending|verified|rejected&page=&limit=) for admin view
+// @route   GET /api/admin/hospitals
+// @access  Private (Admin/Superadmin only)
 const getAllHospitalsForAdmin = async (req, res) => {
   try {
-    const { page = 1, limit = 50, status } = req.query;
     const query = {};
-    if (status) {
-      query.verifiedStatus = status;
+    if (req.query.status && req.query.status !== 'all') {
+      if (!VERIFICATION_STATUSES.includes(req.query.status)) {
+        return res.status(400).json({ message: `status must be one of: ${VERIFICATION_STATUSES.join(', ')}` });
+      }
+      query.verifiedStatus = req.query.status;
     }
-
-    const skip = (Math.max(1, parseInt(page)) - 1) * Math.min(100, parseInt(limit));
+    const { skip, limit } = parsePagination(req.query, { defaultLimit: 50, maxLimit: 100 });
 
     const hospitals = await Hospital.find(query)
       .populate('user', 'name email phone')
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(Math.min(100, parseInt(limit)));
-
+      .limit(limit);
     res.json(hospitals);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
+// @desc    Approve/Verify, Reject, or move a hospital back to pending review
+// @route   PUT /api/admin/hospitals/:id/verify
+// @access  Private (Admin/Superadmin only)
 const verifyHospital = async (req, res) => {
   try {
     const { status } = req.body;
-    if (!['verified', 'rejected', 'pending'].includes(status)) {
-      return res.status(400).json({ message: 'Invalid verification status. Must be: verified, rejected, or pending' });
+    if (!VERIFICATION_STATUSES.includes(status)) {
+      return res.status(400).json({ message: `Invalid verification status. Must be: ${VERIFICATION_STATUSES.join(', ')}` });
+    }
+    if (!isValidObjectId(req.params.id)) {
+      return res.status(400).json({ message: 'Invalid hospital id' });
     }
 
     const hospital = await Hospital.findById(req.params.id);
@@ -41,28 +53,43 @@ const verifyHospital = async (req, res) => {
     hospital.verifiedStatus = status;
     await hospital.save();
 
-    if (hospital.user) {
-      await Notification.create({
-        recipient: hospital.user,
-        message: `Your hospital verification request has been ${status.toUpperCase()} by SwasthyaSetu administrators.`,
-        type: status === 'verified' ? 'info' : 'critical'
-      });
-    }
+    // notify() skips hospitals without a linked user account.
+    await notify(
+      hospital.user,
+      status === 'pending'
+        ? 'Your hospital registration has been moved back to PENDING review by SwasthyaSetu administrators.'
+        : `Your hospital verification request has been ${status.toUpperCase()} by SwasthyaSetu administrators.`,
+      status === 'verified' ? 'info' : status === 'pending' ? 'warning' : 'critical'
+    );
 
     res.json({ message: `Hospital verification status updated to ${status}`, hospital });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
+// @desc    Get system-wide stats
+// @route   GET /api/admin/stats
+// @access  Private (Admin/Superadmin only)
 const getAdminSystemStats = async (req, res) => {
   try {
-    const patientsCount = await User.countDocuments({ role: 'patient' });
-    const hospitalsCount = await Hospital.countDocuments();
-    const verifiedHospitalsCount = await Hospital.countDocuments({ verifiedStatus: 'verified' });
-    const pendingHospitalsCount = await Hospital.countDocuments({ verifiedStatus: 'pending' });
-    const doctorsCount = await Doctor.countDocuments();
-    const appointmentsCount = await Appointment.countDocuments();
+    const [
+      patientsCount,
+      hospitalsCount,
+      verifiedHospitalsCount,
+      pendingHospitalsCount,
+      doctorsCount,
+      appointmentsCount,
+      upcomingAppointmentsCount,
+    ] = await Promise.all([
+      User.countDocuments({ role: 'patient' }),
+      Hospital.countDocuments(),
+      Hospital.countDocuments({ verifiedStatus: 'verified' }),
+      Hospital.countDocuments({ verifiedStatus: 'pending' }),
+      Doctor.countDocuments(),
+      Appointment.countDocuments(),
+      Appointment.countDocuments({ status: 'upcoming' }),
+    ]);
 
     res.json({
       patientsCount,
@@ -70,15 +97,16 @@ const getAdminSystemStats = async (req, res) => {
       verifiedHospitalsCount,
       pendingHospitalsCount,
       doctorsCount,
-      appointmentsCount
+      appointmentsCount,
+      upcomingAppointmentsCount,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    sendError(res, error);
   }
 };
 
 module.exports = {
   getAllHospitalsForAdmin,
   verifyHospital,
-  getAdminSystemStats
+  getAdminSystemStats,
 };
